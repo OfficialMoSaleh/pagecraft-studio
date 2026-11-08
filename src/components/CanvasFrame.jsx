@@ -4,6 +4,7 @@ import {
   DEFAULT_SECTION_ORDER,
   DEFAULT_LAYOUTS,
   SECTION_LAYOUT_OPTIONS,
+  DEFAULT_TYPOGRAPHY,
 } from '../engine/templates';
 
 const SECTION_NAMES_AR = {
@@ -54,6 +55,14 @@ export default function CanvasFrame({
     ...DEFAULT_LAYOUTS,
     ...(pageData.layouts || {}),
   };
+
+  const typography = {
+    ...DEFAULT_TYPOGRAPHY,
+    ...(pageData.typography || {}),
+  };
+
+  const isMobile = deviceView === 'mobile' && !isFullscreen;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Interactive states inside the live landing page
   const [selectedCategory, setSelectedCategory] = useState('الكل');
@@ -563,14 +572,14 @@ export default function CanvasFrame({
         {renderSectionControlBar('stats')}
 
         {statsLayout === 'cards' ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pc-stats-grid">
             {pageData.stats.map((st, idx) => (
               <div key={idx} className={`p-5 rounded ${theme.cardClass} text-center space-y-1`}>
                 <div
                   contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'value', e.currentTarget.innerText)}
-                  className={`text-xl md:text-2xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
+                  className={`text-xl md:text-2xl font-bold pc-price-val ${theme.textMain} focus:outline-none cursor-text`}
                 >
                   {st.value}
                 </div>
@@ -586,14 +595,14 @@ export default function CanvasFrame({
             ))}
           </div>
         ) : statsLayout === 'minimal' ? (
-          <div className={`grid grid-cols-2 md:grid-cols-4 gap-6 md:divide-x md:divide-x-reverse ${theme.borderClass}`}>
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-6 md:divide-x md:divide-x-reverse pc-stats-grid ${theme.borderClass}`}>
             {pageData.stats.map((st, idx) => (
               <div key={idx} className="md:px-4 first:pr-0 space-y-1">
                 <div
                   contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'value', e.currentTarget.innerText)}
-                  className={`text-2xl md:text-3xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
+                  className={`text-2xl md:text-3xl font-bold pc-price-val ${theme.textMain} focus:outline-none cursor-text`}
                 >
                   {st.value}
                 </div>
@@ -609,14 +618,14 @@ export default function CanvasFrame({
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pc-stats-grid">
             {pageData.stats.map((st, idx) => (
               <div key={idx} className="space-y-1">
                 <div
                   contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'value', e.currentTarget.innerText)}
-                  className={`text-xl md:text-2xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
+                  className={`text-xl md:text-2xl font-bold pc-price-val ${theme.textMain} focus:outline-none cursor-text`}
                 >
                   {st.value}
                 </div>
@@ -801,7 +810,7 @@ export default function CanvasFrame({
                             Number(e.currentTarget.innerText.replace(/[^\d.]/g, '')) || prod.price
                           )
                         }
-                        className={`text-base md:text-lg font-bold ${theme.textMain} focus:outline-none cursor-text`}
+                        className={`text-base md:text-lg font-bold pc-price-val ${theme.textMain} focus:outline-none cursor-text`}
                       >
                         {prod.price}
                       </span>
@@ -885,7 +894,7 @@ export default function CanvasFrame({
                               Number(e.currentTarget.innerText.replace(/[^\d.]/g, '')) || firstProd.price
                             )
                           }
-                          className={`text-xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
+                          className={`text-xl font-bold pc-price-val ${theme.textMain} focus:outline-none cursor-text`}
                         >
                           {firstProd.price}
                         </span>
@@ -978,7 +987,7 @@ export default function CanvasFrame({
                               Number(e.currentTarget.innerText.replace(/[^\d.]/g, '')) || prod.price
                             )
                           }
-                          className={`text-base font-bold ${theme.textMain} focus:outline-none cursor-text`}
+                          className={`text-base font-bold pc-price-val ${theme.textMain} focus:outline-none cursor-text`}
                         >
                           {prod.price}
                         </span>
@@ -1258,7 +1267,7 @@ export default function CanvasFrame({
                       contentEditable
                       suppressContentEditableWarning
                       onBlur={(e) => handleTierUpdate(idx, 'price', e.currentTarget.innerText)}
-                      className={`text-xl md:text-2xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
+                      className={`text-xl md:text-2xl font-bold pc-price-val ${theme.textMain} focus:outline-none cursor-text`}
                     >
                       {tier.price}
                     </div>
@@ -1320,7 +1329,7 @@ export default function CanvasFrame({
                       contentEditable
                       suppressContentEditableWarning
                       onBlur={(e) => handleTierUpdate(idx, 'price', e.currentTarget.innerText)}
-                      className={`text-2xl font-bold ${theme.textMain} mb-5 pb-4 border-b ${theme.borderClass} focus:outline-none cursor-text`}
+                      className={`text-2xl font-bold pc-price-val ${theme.textMain} mb-5 pb-4 border-b ${theme.borderClass} focus:outline-none cursor-text`}
                     >
                       {tier.price}
                     </div>
@@ -1628,19 +1637,87 @@ export default function CanvasFrame({
 
   const containerWidth = isFullscreen
     ? 'w-full min-h-screen'
-    : deviceView === 'mobile'
-    ? 'w-[395px] rounded-[28px] border-[6px] border-zinc-800 shadow-2xl my-4'
+    : isMobile
+    ? 'w-[375px] max-w-full rounded-[34px] border-[7px] border-zinc-800 shadow-2xl my-3 bg-zinc-900'
     : 'w-full max-w-5xl rounded-lg border border-zinc-300/90 shadow-sm my-2';
 
+  const heroFontPx = isMobile ? Math.max(20, Math.round(typography.heroSize * 0.72)) : typography.heroSize;
+  const sectionFontPx = isMobile ? Math.max(17, Math.round(typography.sectionSize * 0.84)) : typography.sectionSize;
+  const cardTitleFontPx = isMobile ? Math.max(13, Math.round(typography.cardTitleSize * 0.92)) : typography.cardTitleSize;
+  const bodyFontPx = isMobile ? Math.max(12, Math.round(typography.bodySize * 0.94)) : typography.bodySize;
+  const priceFontPx = isMobile ? Math.max(15, Math.round(typography.priceSize * 0.88)) : typography.priceSize;
+
   return (
-    <div className={`mx-auto transition-all duration-300 overflow-hidden ${containerWidth}`}>
+    <div className={`@container mx-auto transition-all duration-300 overflow-hidden ${containerWidth}`}>
+      {/* Phone Speaker Notch when in Mobile View */}
+      {isMobile && (
+        <div className="bg-zinc-900 py-2 flex items-center justify-center">
+          <div className="w-20 h-1.5 rounded-full bg-zinc-700" />
+        </div>
+      )}
+
+      {/* Dynamic Typography & Mobile Responsiveness Scoped Styles */}
+      <style>{`
+        .pagecraft-canvas h1 {
+          font-size: ${heroFontPx}px !important;
+          line-height: 1.32 !important;
+        }
+        .pagecraft-canvas h2 {
+          font-size: ${sectionFontPx}px !important;
+          line-height: 1.38 !important;
+        }
+        .pagecraft-canvas h3 {
+          font-size: ${cardTitleFontPx}px !important;
+          line-height: 1.42 !important;
+        }
+        .pagecraft-canvas p,
+        .pagecraft-canvas li,
+        .pagecraft-canvas blockquote p {
+          font-size: ${bodyFontPx}px !important;
+          line-height: 1.65 !important;
+        }
+        .pagecraft-canvas .pc-price-val {
+          font-size: ${priceFontPx}px !important;
+        }
+        ${isMobile ? `
+        .pagecraft-mobile-mode section,
+        .pagecraft-mobile-mode section > div {
+          padding-left: 1rem !important;
+          padding-right: 1rem !important;
+        }
+        .pagecraft-mobile-mode section {
+          padding-top: 2rem !important;
+          padding-bottom: 2rem !important;
+        }
+        .pagecraft-mobile-mode .grid {
+          grid-template-columns: minmax(0, 1fr) !important;
+          gap: 1rem !important;
+        }
+        .pagecraft-mobile-mode [class*="md:col-span-"] {
+          grid-column: span 1 / span 1 !important;
+        }
+        .pagecraft-mobile-mode [class*="sm:flex-row"],
+        .pagecraft-mobile-mode [class*="md:flex-row"] {
+          flex-direction: column !important;
+          align-items: stretch !important;
+        }
+        .pagecraft-mobile-mode .pc-stats-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 0.75rem !important;
+        }
+        .pagecraft-mobile-mode img {
+          max-height: 210px !important;
+        }
+        ` : ''}
+      `}</style>
+
       <div
-        className={`min-h-screen ${theme.bgClass} flex flex-col transition-colors duration-300 relative`}
+        className={`pagecraft-canvas ${isMobile ? 'pagecraft-mobile-mode' : ''} min-h-screen ${theme.bgClass} flex flex-col transition-colors duration-300 relative`}
         style={{ fontFamily: theme.fontFamily }}
       >
         {/* Top Announcement Bar */}
         {sections.announcement && pageData.announcement && (
-          <div className={`px-4 py-2.5 text-center text-xs border-b ${theme.borderClass} ${theme.surfaceClass}`}>
+          <div className={`px-3 py-2 text-center text-[11px] border-b ${theme.borderClass} ${theme.surfaceClass}`}>
             <span
               contentEditable={!isFullscreen}
               suppressContentEditableWarning
@@ -1653,59 +1730,121 @@ export default function CanvasFrame({
         )}
 
         {/* Navigation Bar */}
-        <header className={`border-b ${theme.borderClass} px-6 md:px-12 py-5 flex items-center justify-between sticky top-0 z-20 ${theme.bgClass}/95 backdrop-blur-sm`}>
-          <div className="flex items-center gap-6">
-            <span
-              contentEditable={!isFullscreen}
-              suppressContentEditableWarning
-              onBlur={(e) => onUpdateField('brandName', e.currentTarget.innerText)}
-              className={`font-bold text-base md:text-lg tracking-tight ${theme.textMain} focus:outline-none cursor-text`}
-            >
-              {pageData.brandName || 'اسم المشروع'}
-            </span>
+        <header className={`border-b ${theme.borderClass} ${isMobile ? 'px-4 py-3.5' : 'px-6 @md:px-12 py-5'} sticky top-0 z-20 ${theme.bgClass}/95 backdrop-blur-sm`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-4 min-w-0">
+              <span
+                contentEditable={!isFullscreen}
+                suppressContentEditableWarning
+                onBlur={(e) => onUpdateField('brandName', e.currentTarget.innerText)}
+                className={`font-bold ${isMobile ? 'text-sm' : 'text-base @md:text-lg'} tracking-tight ${theme.textMain} focus:outline-none cursor-text truncate`}
+              >
+                {pageData.brandName || 'اسم المشروع'}
+              </span>
 
-            {deviceView !== 'mobile' && (
-              <nav className={`hidden md:flex items-center gap-5 text-xs ${theme.textMuted}`}>
-                {sections.catalog && (
-                  <button onClick={() => scrollToSection('catalog-section')} className="hover:underline cursor-pointer">
-                    المعروضات
-                  </button>
-                )}
-                {sections.features && (
-                  <button onClick={() => scrollToSection('features-section')} className="hover:underline cursor-pointer">
-                    المميزات
-                  </button>
-                )}
-                {sections.pricing && (
-                  <button onClick={() => scrollToSection('pricing-section')} className="hover:underline cursor-pointer">
-                    الباقات والأسعار
-                  </button>
-                )}
-                {sections.faq && (
-                  <button onClick={() => scrollToSection('faq-section')} className="hover:underline cursor-pointer">
-                    الأسئلة الشائعة
-                  </button>
-                )}
-              </nav>
-            )}
-          </div>
+              {!isMobile && (
+                <nav className={`hidden @md:flex items-center gap-5 text-xs ${theme.textMuted}`}>
+                  {sections.catalog && (
+                    <button onClick={() => scrollToSection('catalog-section')} className="hover:underline cursor-pointer">
+                      المعروضات
+                    </button>
+                  )}
+                  {sections.features && (
+                    <button onClick={() => scrollToSection('features-section')} className="hover:underline cursor-pointer">
+                      المميزات
+                    </button>
+                  )}
+                  {sections.pricing && (
+                    <button onClick={() => scrollToSection('pricing-section')} className="hover:underline cursor-pointer">
+                      الباقات والأسعار
+                    </button>
+                  )}
+                  {sections.faq && (
+                    <button onClick={() => scrollToSection('faq-section')} className="hover:underline cursor-pointer">
+                      الأسئلة الشائعة
+                    </button>
+                  )}
+                </nav>
+              )}
+            </div>
 
-          <div className="flex items-center gap-2.5">
-            {cartCount > 0 && (
+            <div className="flex items-center gap-2 shrink-0">
+              {cartCount > 0 && (
+                <button
+                  onClick={() => scrollToSection('order-section')}
+                  className={`text-[11px] px-2.5 py-1.5 rounded font-semibold border ${theme.borderClass} ${theme.surfaceClass} ${theme.textMain} cursor-pointer`}
+                >
+                  {isMobile ? `السلة (${cartCount})` : `سلة الطلب (${cartCount}) — ${cartSubtotal} ${currency}`}
+                </button>
+              )}
               <button
                 onClick={() => scrollToSection('order-section')}
-                className={`text-xs px-3 py-2 rounded font-semibold border ${theme.borderClass} ${theme.surfaceClass} ${theme.textMain} cursor-pointer`}
+                className={`text-xs ${isMobile ? 'px-3 py-1.5' : 'px-4 py-2'} rounded font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
               >
-                سلة الطلب ({cartCount}) — {cartSubtotal} {currency}
+                اطلب الآن
               </button>
-            )}
-            <button
-              onClick={() => scrollToSection('order-section')}
-              className={`text-xs px-4 py-2 rounded font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
-            >
-              اطلب الآن
-            </button>
+              {isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className={`px-2 py-1.5 rounded border ${theme.borderClass} text-xs font-bold ${theme.textMain} cursor-pointer`}
+                  title="قائمة الأقسام"
+                >
+                  {mobileMenuOpen ? '×' : '☰'}
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Collapsible Mobile Navigation Drawer inside Phone Preview */}
+          {isMobile && mobileMenuOpen && (
+            <nav className={`mt-3 pt-3 border-t ${theme.borderClass} flex flex-wrap gap-2 text-xs ${theme.textMain}`}>
+              {sections.catalog && (
+                <button
+                  onClick={() => {
+                    scrollToSection('catalog-section');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`px-2.5 py-1 rounded ${theme.surfaceClass} cursor-pointer`}
+                >
+                  المعروضات
+                </button>
+              )}
+              {sections.features && (
+                <button
+                  onClick={() => {
+                    scrollToSection('features-section');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`px-2.5 py-1 rounded ${theme.surfaceClass} cursor-pointer`}
+                >
+                  المميزات
+                </button>
+              )}
+              {sections.pricing && (
+                <button
+                  onClick={() => {
+                    scrollToSection('pricing-section');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`px-2.5 py-1 rounded ${theme.surfaceClass} cursor-pointer`}
+                >
+                  الباقات والأسعار
+                </button>
+              )}
+              {sections.faq && (
+                <button
+                  onClick={() => {
+                    scrollToSection('faq-section');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`px-2.5 py-1 rounded ${theme.surfaceClass} cursor-pointer`}
+                >
+                  الأسئلة الشائعة
+                </button>
+              )}
+            </nav>
+          )}
         </header>
 
         {/* Render Dynamic Ordered Sections */}
@@ -1715,11 +1854,18 @@ export default function CanvasFrame({
         })}
 
         {/* Minimal Editorial Footer */}
-        <footer className={`mt-auto border-t ${theme.borderClass} px-6 md:px-12 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs ${theme.textMuted}`}>
+        <footer className={`mt-auto border-t ${theme.borderClass} ${isMobile ? 'px-4 py-5 flex-col text-center' : 'px-6 @md:px-12 py-6 flex-col @sm:flex-row'} flex items-center justify-between gap-2 text-xs ${theme.textMuted}`}>
           <span>{pageData.brandName} — جميع الحقوق محفوظة</span>
           <span>للتواصل المباشر: {pageData.whatsappPhone}</span>
         </footer>
       </div>
+
+      {/* Phone Home Indicator Bar when in Mobile View */}
+      {isMobile && (
+        <div className="bg-zinc-900 py-2.5 flex items-center justify-center">
+          <div className="w-28 h-1 rounded-full bg-zinc-600" />
+        </div>
+      )}
     </div>
   );
 }

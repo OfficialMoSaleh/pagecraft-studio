@@ -14,6 +14,8 @@ import {
   DEFAULT_SECTION_ORDER,
   DEFAULT_LAYOUTS,
   SECTION_LAYOUT_OPTIONS,
+  DEFAULT_TYPOGRAPHY,
+  TYPOGRAPHY_PRESETS,
 } from './engine/templates';
 import {
   loadProjectsWorkspace,
@@ -400,6 +402,30 @@ export default function App() {
 
   const currentSectionOrder = pageData.sectionOrder || DEFAULT_SECTION_ORDER;
   const currentLayouts = { ...DEFAULT_LAYOUTS, ...(pageData.layouts || {}) };
+  const currentTypography = { ...DEFAULT_TYPOGRAPHY, ...(pageData.typography || {}) };
+
+  const handleApplyTypographyPreset = (presetValues) => {
+    handleUpdateField('typography', { ...presetValues });
+  };
+
+  const handleUpdateTypographyField = (field, val) => {
+    handleUpdateField('typography', {
+      ...currentTypography,
+      scale: 'custom',
+      [field]: Number(val),
+    });
+  };
+
+  const handleStepFontSizes = (delta) => {
+    handleUpdateField('typography', {
+      scale: 'custom',
+      heroSize: Math.min(56, Math.max(20, currentTypography.heroSize + delta * 2)),
+      sectionSize: Math.min(36, Math.max(15, currentTypography.sectionSize + delta * 2)),
+      cardTitleSize: Math.min(24, Math.max(12, currentTypography.cardTitleSize + delta)),
+      bodySize: Math.min(20, Math.max(11, currentTypography.bodySize + delta)),
+      priceSize: Math.min(32, Math.max(14, currentTypography.priceSize + delta * 2)),
+    });
+  };
 
   // If visiting /p/:slug, render the standalone live published site
   if (liveRouteSlug) {
@@ -799,7 +825,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: SECTION REORDERING, LAYOUT VARIANTS & THEME */}
+          {/* TAB 3: SECTION REORDERING, LAYOUT VARIANTS, TYPOGRAPHY & THEME */}
           {sidebarTab === 'design' && (
             <div className="space-y-6">
               {/* Color Palettes */}
@@ -824,6 +850,126 @@ export default function App() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Typography & Font Size Controls */}
+              <div className="space-y-3 pt-4 border-t border-[#E5E3DC]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-zinc-900 block">
+                      التحكم في حجم الخطوط والنصوص
+                    </label>
+                    <p className="text-[11px] text-zinc-500">
+                      اختر مقياساً عاماً أو خصص حجم كل عنصر بالبيكسل
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyTypographyPreset(DEFAULT_TYPOGRAPHY)}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
+                  >
+                    ضبط افتراضي
+                  </button>
+                </div>
+
+                {/* 4 Quick Presets */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {TYPOGRAPHY_PRESETS.map((preset) => {
+                    const isChosen = currentTypography.scale === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleApplyTypographyPreset(preset.values)}
+                        className={`py-1.5 px-2 rounded text-[11px] font-semibold border transition-all cursor-pointer ${
+                          isChosen
+                            ? 'bg-zinc-900 text-white border-zinc-900'
+                            : 'bg-white text-zinc-700 border-[#D8D5CD] hover:bg-zinc-50'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Fine-Grained Font Size Sliders */}
+                <div className="p-3.5 bg-white rounded border border-[#DFDDD6] space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-zinc-700 font-medium">حجم العنوان الرئيسي (Hero)</span>
+                      <span className="font-mono font-bold text-zinc-900">{currentTypography.heroSize}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="22"
+                      max="54"
+                      value={currentTypography.heroSize}
+                      onChange={(e) => handleUpdateTypographyField('heroSize', e.target.value)}
+                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-zinc-700 font-medium">حجم عناوين الأقسام</span>
+                      <span className="font-mono font-bold text-zinc-900">{currentTypography.sectionSize}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="16"
+                      max="34"
+                      value={currentTypography.sectionSize}
+                      onChange={(e) => handleUpdateTypographyField('sectionSize', e.target.value)}
+                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-zinc-700 font-medium">حجم عناوين المنتجات والبطاقات</span>
+                      <span className="font-mono font-bold text-zinc-900">{currentTypography.cardTitleSize}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="12"
+                      max="23"
+                      value={currentTypography.cardTitleSize}
+                      onChange={(e) => handleUpdateTypographyField('cardTitleSize', e.target.value)}
+                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-zinc-700 font-medium">حجم الوصف والفقرات النصية</span>
+                      <span className="font-mono font-bold text-zinc-900">{currentTypography.bodySize}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="11"
+                      max="19"
+                      value={currentTypography.bodySize}
+                      onChange={(e) => handleUpdateTypographyField('bodySize', e.target.value)}
+                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="text-zinc-700 font-medium">حجم الأسعار والأرقام</span>
+                      <span className="font-mono font-bold text-zinc-900">{currentTypography.priceSize}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="14"
+                      max="30"
+                      value={currentTypography.priceSize}
+                      onChange={(e) => handleUpdateTypographyField('priceSize', e.target.value)}
+                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1053,19 +1199,43 @@ export default function App() {
 
             <span className="text-zinc-300 hidden sm:inline">|</span>
 
+            {/* Quick Font Size Controls in Top Bar */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              <span className="text-zinc-400">حجم الخط:</span>
+              <button
+                type="button"
+                onClick={() => handleStepFontSizes(-1)}
+                className="px-2 py-0.5 rounded bg-white border border-[#D8D5CD] hover:bg-zinc-100 text-zinc-800 font-bold text-[11px] cursor-pointer"
+                title="تصغير الخطوط"
+              >
+                A-
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStepFontSizes(1)}
+                className="px-2 py-0.5 rounded bg-white border border-[#D8D5CD] hover:bg-zinc-100 text-zinc-800 font-bold text-[11px] cursor-pointer"
+                title="تكبير الخطوط"
+              >
+                A+
+              </button>
+            </div>
+
+            <span className="text-zinc-300 hidden md:inline">|</span>
+
             <a
               href={liveShareUrl}
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-600 hover:text-zinc-950 bg-white/80 px-2.5 py-1 rounded border border-[#DFDDD6]"
-              title="فتح الرابط الحي المستقل في نافذة جديدة"
+              className="hidden md:inline-flex items-center gap-1.5 text-[11px] text-zinc-600 hover:text-zinc-950 bg-white/80 px-2.5 py-1 rounded border border-[#DFDDD6]"
+              title="فتح معاينة الموقع كزائر في نافذة جديدة (محلياً على جهازك)"
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
                   activeProject?.isPublished ? 'bg-emerald-600' : 'bg-zinc-400'
                 }`}
               />
-              <span className="dir-ltr">/p/{activeProject?.slug}</span>
+              <span>معاينة محلية كزائر</span>
+              <span className="font-mono dir-ltr">(/p/{activeProject?.slug})</span>
               <span>↗</span>
             </a>
           </div>

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { DESIGN_THEMES, DEFAULT_SECTION_ORDER, DEFAULT_LAYOUTS } from '../engine/templates';
+import { DESIGN_THEMES, DEFAULT_SECTION_ORDER, DEFAULT_LAYOUTS, DEFAULT_TYPOGRAPHY } from '../engine/templates';
 
 export function buildStandaloneHTML(pageData, activeThemeKey) {
   const theme = DESIGN_THEMES[activeThemeKey] || DESIGN_THEMES.editorial;
+  const typo = { ...DEFAULT_TYPOGRAPHY, ...(pageData.typography || {}) };
   const currency = pageData.currency || 'ج.م';
   const waPhone = pageData.whatsappPhone || '201000000000';
   const sections = {
@@ -274,6 +275,14 @@ export function buildStandaloneHTML(pageData, activeThemeKey) {
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { font-family: ${theme.fontFamily}; scroll-behavior: smooth; }
+    main h1 { font-size: ${typo.heroSize}px !important; line-height: 1.32 !important; }
+    main h2 { font-size: ${typo.sectionSize}px !important; line-height: 1.38 !important; }
+    main h3 { font-size: ${typo.cardTitleSize}px !important; line-height: 1.42 !important; }
+    main p, main li { font-size: ${typo.bodySize}px !important; line-height: 1.65 !important; }
+    @media (max-width: 767px) {
+      main h1 { font-size: ${Math.max(20, Math.round(typo.heroSize * 0.72))}px !important; }
+      main h2 { font-size: ${Math.max(17, Math.round(typo.sectionSize * 0.84))}px !important; }
+    }
   </style>
 </head>
 <body class="${theme.bgClass} min-h-screen flex flex-col">

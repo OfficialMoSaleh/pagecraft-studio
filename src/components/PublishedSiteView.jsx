@@ -69,14 +69,14 @@ export default function PublishedSiteView({ slug, onExitToStudio }) {
 
       {!hideBadge && (
         <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 bg-zinc-900/95 text-white px-3.5 py-2 rounded shadow-xl text-xs backdrop-blur-sm">
-          <span className="text-zinc-300">معاينة الرابط الحي:</span>
+          <span className="text-zinc-300">معاينة كزائر (محلياً على جهازك):</span>
           <span className="font-mono text-emerald-400 dir-ltr">/p/{site.slug}</span>
           <button
             type="button"
             onClick={onExitToStudio}
             className="px-2.5 py-1 bg-white text-zinc-900 font-semibold rounded hover:bg-zinc-200 transition-colors cursor-pointer mr-1"
           >
-            فتح في المحرر
+            العودة للمحرر
           </button>
           <button
             type="button"
@@ -91,3 +91,4 @@ export default function PublishedSiteView({ slug, onExitToStudio }) {
     </div>
   );
 }
+

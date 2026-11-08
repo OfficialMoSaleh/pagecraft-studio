@@ -3,6 +3,7 @@ import {
   DEFAULT_SECTION_ORDER,
   DEFAULT_LAYOUTS,
   DEFAULT_SECTIONS,
+  DEFAULT_TYPOGRAPHY,
 } from './templates';
 import { buildStandaloneHTML } from '../components/CodeExportModal';
 
@@ -57,6 +58,7 @@ export function normalizePageData(pageData) {
         : [...DEFAULT_SECTION_ORDER],
     layouts: { ...DEFAULT_LAYOUTS, ...(pageData.layouts || {}) },
     sections: { ...DEFAULT_SECTIONS, ...(pageData.sections || {}) },
+    typography: { ...DEFAULT_TYPOGRAPHY, ...(pageData.typography || {}) },
   };
 }
 
@@ -355,3 +357,4 @@ export async function resolvePublishedSite(slug) {
 
   return null;
 }
+

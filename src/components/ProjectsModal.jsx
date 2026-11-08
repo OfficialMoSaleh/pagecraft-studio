@@ -233,7 +233,7 @@ export default function ProjectsModal({
                             : 'bg-zinc-100 text-zinc-600 border-zinc-200'
                         }`}
                       >
-                        {proj.isPublished ? 'منشور برابط حي' : 'مسودة'}
+                        {proj.isPublished ? 'مُفعَّل للمعاينة' : 'مسودة'}
                       </span>
 
                       <span className="text-[10px] text-zinc-400">
@@ -247,7 +247,7 @@ export default function ProjectsModal({
 
                     {/* Live URL bar */}
                     <div className="flex items-center gap-2 pt-1 text-[11px]">
-                      <span className="text-zinc-400">الرابط المستقل:</span>
+                      <span className="text-zinc-400">رابط المعاينة المحلي:</span>
                       <a
                         href={liveUrl}
                         target="_blank"
@@ -261,7 +261,7 @@ export default function ProjectsModal({
                         onClick={() => handleCopyUrl(proj.slug)}
                         className="text-[10px] px-2 py-0.5 rounded bg-[#F1EFEA] hover:bg-[#E5E2DC] text-zinc-700 cursor-pointer"
                       >
-                        {copiedSlug === proj.slug ? 'تم نسخ الرابط' : 'نسخ الرابط'}
+                        {copiedSlug === proj.slug ? 'تم نسخ الرابط' : 'نسخ'}
                       </button>
                     </div>
                   </div>
@@ -331,3 +331,4 @@ export default function ProjectsModal({
     </div>
   );
 }
+

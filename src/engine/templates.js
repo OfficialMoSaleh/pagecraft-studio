@@ -181,6 +181,38 @@ export const SECTION_LAYOUT_OPTIONS = {
   ],
 };
 
+export const DEFAULT_TYPOGRAPHY = {
+  scale: 'medium',
+  heroSize: 34,
+  sectionSize: 22,
+  cardTitleSize: 15,
+  bodySize: 14,
+  priceSize: 19,
+};
+
+export const TYPOGRAPHY_PRESETS = [
+  {
+    id: 'small',
+    label: 'صغير وهادئ',
+    values: { scale: 'small', heroSize: 26, sectionSize: 18, cardTitleSize: 13, bodySize: 12, priceSize: 16 },
+  },
+  {
+    id: 'medium',
+    label: 'متوسط (افتراضي)',
+    values: { scale: 'medium', heroSize: 34, sectionSize: 22, cardTitleSize: 15, bodySize: 14, priceSize: 19 },
+  },
+  {
+    id: 'large',
+    label: 'كبير وواضح',
+    values: { scale: 'large', heroSize: 42, sectionSize: 26, cardTitleSize: 17, bodySize: 16, priceSize: 22 },
+  },
+  {
+    id: 'xlarge',
+    label: 'بارز وعريض',
+    values: { scale: 'xlarge', heroSize: 48, sectionSize: 30, cardTitleSize: 19, bodySize: 17, priceSize: 25 },
+  },
+];
+
 /**
  * Helper to extract custom details (price, brand name, discount) from user prompt text
  */
@@ -1028,6 +1060,7 @@ export function generatePageData(promptText = '', themeKey = 'editorial') {
     ...chosen,
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     layouts: nicheDefaultLayouts[niche] || { ...DEFAULT_LAYOUTS },
+    typography: { ...DEFAULT_TYPOGRAPHY },
   };
 }
 
