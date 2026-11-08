@@ -287,7 +287,7 @@ export default function CanvasFrame({
             <div className="md:col-span-7 space-y-5">
               <div>
                 <span
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => onUpdateField('category', e.currentTarget.innerText)}
                   className={`text-xs pb-1 inline-block font-medium ${theme.tagClass} focus:outline-none cursor-text`}
@@ -296,7 +296,7 @@ export default function CanvasFrame({
                 </span>
               </div>
               <h1
-                contentEditable
+                contentEditable={!isFullscreen}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateField('headline', e.currentTarget.innerText)}
                 className={`text-2xl md:text-4xl font-bold leading-[1.3] ${theme.textMain} focus:outline-none cursor-text`}
@@ -304,7 +304,7 @@ export default function CanvasFrame({
                 {pageData.headline}
               </h1>
               <p
-                contentEditable
+                contentEditable={!isFullscreen}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateField('subheadline', e.currentTarget.innerText)}
                 className={`text-sm md:text-base leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
@@ -317,7 +317,7 @@ export default function CanvasFrame({
                   className={`px-6 py-3 rounded text-xs md:text-sm font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
                 >
                   <span
-                    contentEditable
+                    contentEditable={!isFullscreen}
                     suppressContentEditableWarning
                     onBlur={(e) => onUpdateField('primaryCta', e.currentTarget.innerText)}
                     onClick={(e) => e.stopPropagation()}
@@ -331,7 +331,7 @@ export default function CanvasFrame({
                   className={`px-5 py-3 rounded text-xs md:text-sm font-medium transition-colors cursor-pointer ${theme.secondaryBtn}`}
                 >
                   <span
-                    contentEditable
+                    contentEditable={!isFullscreen}
                     suppressContentEditableWarning
                     onBlur={(e) => onUpdateField('secondaryCta', e.currentTarget.innerText)}
                     onClick={(e) => e.stopPropagation()}
@@ -374,7 +374,7 @@ export default function CanvasFrame({
           <div className="px-6 md:px-12 pt-14 pb-12 text-center max-w-4xl mx-auto">
             <div className="mb-4">
               <span
-                contentEditable
+                contentEditable={!isFullscreen}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateField('category', e.currentTarget.innerText)}
                 className={`text-xs px-3 py-1 rounded inline-block font-medium ${theme.badgeBg} focus:outline-none cursor-text`}
@@ -383,7 +383,7 @@ export default function CanvasFrame({
               </span>
             </div>
             <h1
-              contentEditable
+              contentEditable={!isFullscreen}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField('headline', e.currentTarget.innerText)}
               className={`text-2xl md:text-4xl lg:text-5xl font-bold leading-[1.3] mb-5 max-w-3xl mx-auto ${theme.textMain} focus:outline-none cursor-text`}
@@ -391,7 +391,7 @@ export default function CanvasFrame({
               {pageData.headline}
             </h1>
             <p
-              contentEditable
+              contentEditable={!isFullscreen}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField('subheadline', e.currentTarget.innerText)}
               className={`text-sm md:text-base leading-relaxed mb-8 max-w-2xl mx-auto ${theme.textMuted} focus:outline-none cursor-text`}
@@ -404,7 +404,7 @@ export default function CanvasFrame({
                 className={`px-6 py-3 rounded text-xs md:text-sm font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
               >
                 <span
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => onUpdateField('primaryCta', e.currentTarget.innerText)}
                   onClick={(e) => e.stopPropagation()}
@@ -418,7 +418,7 @@ export default function CanvasFrame({
                 className={`px-5 py-3 rounded text-xs md:text-sm font-medium transition-colors cursor-pointer ${theme.secondaryBtn}`}
               >
                 <span
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => onUpdateField('secondaryCta', e.currentTarget.innerText)}
                   onClick={(e) => e.stopPropagation()}
@@ -460,7 +460,7 @@ export default function CanvasFrame({
             <div className="px-6 md:px-12 pt-12 pb-10 max-w-3xl">
               <div className="mb-4">
                 <span
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => onUpdateField('category', e.currentTarget.innerText)}
                   className={`text-xs pb-1 inline-block font-medium ${theme.tagClass} focus:outline-none cursor-text`}
@@ -469,7 +469,7 @@ export default function CanvasFrame({
                 </span>
               </div>
               <h1
-                contentEditable
+                contentEditable={!isFullscreen}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateField('headline', e.currentTarget.innerText)}
                 className={`text-2xl md:text-4xl lg:text-[42px] font-bold leading-[1.3] mb-5 ${theme.textMain} focus:outline-none cursor-text`}
@@ -477,7 +477,7 @@ export default function CanvasFrame({
                 {pageData.headline}
               </h1>
               <p
-                contentEditable
+                contentEditable={!isFullscreen}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateField('subheadline', e.currentTarget.innerText)}
                 className={`text-sm md:text-base leading-relaxed mb-8 max-w-2xl ${theme.textMuted} focus:outline-none cursor-text`}
@@ -490,7 +490,7 @@ export default function CanvasFrame({
                   className={`px-6 py-3 rounded text-xs md:text-sm font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
                 >
                   <span
-                    contentEditable
+                    contentEditable={!isFullscreen}
                     suppressContentEditableWarning
                     onBlur={(e) => onUpdateField('primaryCta', e.currentTarget.innerText)}
                     onClick={(e) => e.stopPropagation()}
@@ -504,7 +504,7 @@ export default function CanvasFrame({
                   className={`px-5 py-3 rounded text-xs md:text-sm font-medium transition-colors cursor-pointer ${theme.secondaryBtn}`}
                 >
                   <span
-                    contentEditable
+                    contentEditable={!isFullscreen}
                     suppressContentEditableWarning
                     onBlur={(e) => onUpdateField('secondaryCta', e.currentTarget.innerText)}
                     onClick={(e) => e.stopPropagation()}
@@ -567,7 +567,7 @@ export default function CanvasFrame({
             {pageData.stats.map((st, idx) => (
               <div key={idx} className={`p-5 rounded ${theme.cardClass} text-center space-y-1`}>
                 <div
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'value', e.currentTarget.innerText)}
                   className={`text-xl md:text-2xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -575,7 +575,7 @@ export default function CanvasFrame({
                   {st.value}
                 </div>
                 <div
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'label', e.currentTarget.innerText)}
                   className={`text-xs ${theme.textMuted} focus:outline-none cursor-text`}
@@ -590,7 +590,7 @@ export default function CanvasFrame({
             {pageData.stats.map((st, idx) => (
               <div key={idx} className="md:px-4 first:pr-0 space-y-1">
                 <div
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'value', e.currentTarget.innerText)}
                   className={`text-2xl md:text-3xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -598,7 +598,7 @@ export default function CanvasFrame({
                   {st.value}
                 </div>
                 <div
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'label', e.currentTarget.innerText)}
                   className={`text-xs ${theme.textMuted} focus:outline-none cursor-text`}
@@ -613,7 +613,7 @@ export default function CanvasFrame({
             {pageData.stats.map((st, idx) => (
               <div key={idx} className="space-y-1">
                 <div
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'value', e.currentTarget.innerText)}
                   className={`text-xl md:text-2xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -621,7 +621,7 @@ export default function CanvasFrame({
                   {st.value}
                 </div>
                 <div
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleStatUpdate(idx, 'label', e.currentTarget.innerText)}
                   className={`text-xs ${theme.textMuted} focus:outline-none cursor-text`}
@@ -687,7 +687,7 @@ export default function CanvasFrame({
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <h2
-              contentEditable
+              contentEditable={!isFullscreen}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField('catalogTitle', e.currentTarget.innerText)}
               className={`text-xl md:text-2xl font-bold ${theme.textMain} mb-1.5 focus:outline-none cursor-text`}
@@ -695,7 +695,7 @@ export default function CanvasFrame({
               {pageData.catalogTitle || 'المنتجات والخدمات المتاحة'}
             </h2>
             <p
-              contentEditable
+              contentEditable={!isFullscreen}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField('catalogSubtitle', e.currentTarget.innerText)}
               className={`text-xs md:text-sm ${theme.textMuted} focus:outline-none cursor-text`}
@@ -765,7 +765,7 @@ export default function CanvasFrame({
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
                         <h3
-                          contentEditable
+                          contentEditable={!isFullscreen}
                           suppressContentEditableWarning
                           onBlur={(e) => handleProductUpdate(realIdx, 'name', e.currentTarget.innerText)}
                           className={`text-sm md:text-base font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -779,7 +779,7 @@ export default function CanvasFrame({
                         )}
                       </div>
                       <p
-                        contentEditable
+                        contentEditable={!isFullscreen}
                         suppressContentEditableWarning
                         onBlur={(e) => handleProductUpdate(realIdx, 'desc', e.currentTarget.innerText)}
                         className={`text-xs leading-relaxed ${theme.textMuted} max-w-xl focus:outline-none cursor-text`}
@@ -792,7 +792,7 @@ export default function CanvasFrame({
                   <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-zinc-200/50">
                     <div className="flex items-baseline gap-1">
                       <span
-                        contentEditable
+                        contentEditable={!isFullscreen}
                         suppressContentEditableWarning
                         onBlur={(e) =>
                           handleProductUpdate(
@@ -857,7 +857,7 @@ export default function CanvasFrame({
                         {firstProd.tag || 'إصدار رئيسي مختار'}
                       </span>
                       <h3
-                        contentEditable
+                        contentEditable={!isFullscreen}
                         suppressContentEditableWarning
                         onBlur={(e) => handleProductUpdate(firstIdx, 'name', e.currentTarget.innerText)}
                         className={`text-lg md:text-2xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -865,7 +865,7 @@ export default function CanvasFrame({
                         {firstProd.name}
                       </h3>
                       <p
-                        contentEditable
+                        contentEditable={!isFullscreen}
                         suppressContentEditableWarning
                         onBlur={(e) => handleProductUpdate(firstIdx, 'desc', e.currentTarget.innerText)}
                         className={`text-xs md:text-sm leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
@@ -876,7 +876,7 @@ export default function CanvasFrame({
                     <div className={`pt-4 border-t ${theme.borderClass} flex items-center justify-between`}>
                       <div className="flex items-baseline gap-1.5">
                         <span
-                          contentEditable
+                          contentEditable={!isFullscreen}
                           suppressContentEditableWarning
                           onBlur={(e) =>
                             handleProductUpdate(
@@ -948,7 +948,7 @@ export default function CanvasFrame({
                       </div>
                       <div className="p-5">
                         <h3
-                          contentEditable
+                          contentEditable={!isFullscreen}
                           suppressContentEditableWarning
                           onBlur={(e) => handleProductUpdate(realIdx, 'name', e.currentTarget.innerText)}
                           className={`text-sm font-bold mb-2 ${theme.textMain} focus:outline-none cursor-text`}
@@ -956,7 +956,7 @@ export default function CanvasFrame({
                           {prod.name}
                         </h3>
                         <p
-                          contentEditable
+                          contentEditable={!isFullscreen}
                           suppressContentEditableWarning
                           onBlur={(e) => handleProductUpdate(realIdx, 'desc', e.currentTarget.innerText)}
                           className={`text-xs leading-relaxed mb-4 ${theme.textMuted} focus:outline-none cursor-text`}
@@ -969,7 +969,7 @@ export default function CanvasFrame({
                     <div className={`px-5 py-4 border-t ${theme.borderClass} flex items-center justify-between gap-2`}>
                       <div className="flex items-baseline gap-1.5">
                         <span
-                          contentEditable
+                          contentEditable={!isFullscreen}
                           suppressContentEditableWarning
                           onBlur={(e) =>
                             handleProductUpdate(
@@ -1022,7 +1022,7 @@ export default function CanvasFrame({
                     {feat.num || `0${idx + 1}`}
                   </span>
                   <h3
-                    contentEditable
+                    contentEditable={!isFullscreen}
                     suppressContentEditableWarning
                     onBlur={(e) => handleFeatureUpdate(idx, 'title', e.currentTarget.innerText)}
                     className={`text-sm font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -1031,7 +1031,7 @@ export default function CanvasFrame({
                   </h3>
                 </div>
                 <p
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleFeatureUpdate(idx, 'desc', e.currentTarget.innerText)}
                   className={`md:col-span-8 text-xs md:text-sm leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
@@ -1049,7 +1049,7 @@ export default function CanvasFrame({
                   {feat.num || `0${idx + 1}`}
                 </span>
                 <h3
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleFeatureUpdate(idx, 'title', e.currentTarget.innerText)}
                   className={`text-sm font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -1057,7 +1057,7 @@ export default function CanvasFrame({
                   {feat.title}
                 </h3>
                 <p
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleFeatureUpdate(idx, 'desc', e.currentTarget.innerText)}
                   className={`text-xs leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
@@ -1075,7 +1075,7 @@ export default function CanvasFrame({
                   {feat.num || `0${idx + 1}`}
                 </span>
                 <h3
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleFeatureUpdate(idx, 'title', e.currentTarget.innerText)}
                   className={`text-sm font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -1083,7 +1083,7 @@ export default function CanvasFrame({
                   {feat.title}
                 </h3>
                 <p
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleFeatureUpdate(idx, 'desc', e.currentTarget.innerText)}
                   className={`text-xs leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
@@ -1125,7 +1125,7 @@ export default function CanvasFrame({
                   خطوة {st.step || `0${idx + 1}`}
                 </span>
                 <h3
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleProcessUpdate(idx, 'title', e.currentTarget.innerText)}
                   className={`text-sm font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -1133,7 +1133,7 @@ export default function CanvasFrame({
                   {st.title}
                 </h3>
                 <p
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleProcessUpdate(idx, 'desc', e.currentTarget.innerText)}
                   className={`text-xs leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
@@ -1151,7 +1151,7 @@ export default function CanvasFrame({
                   خطوة {st.step || `0${idx + 1}`}
                 </span>
                 <h3
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleProcessUpdate(idx, 'title', e.currentTarget.innerText)}
                   className={`text-sm font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -1159,7 +1159,7 @@ export default function CanvasFrame({
                   {st.title}
                 </h3>
                 <p
-                  contentEditable
+                  contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => handleProcessUpdate(idx, 'desc', e.currentTarget.innerText)}
                   className={`text-xs leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
@@ -1210,7 +1210,7 @@ export default function CanvasFrame({
                   <div className="md:col-span-4 space-y-1">
                     <div className="flex items-center gap-2">
                       <h3
-                        contentEditable
+                        contentEditable={!isFullscreen}
                         suppressContentEditableWarning
                         onBlur={(e) => handleTierUpdate(idx, 'name', e.currentTarget.innerText)}
                         className={`text-base font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -1238,7 +1238,7 @@ export default function CanvasFrame({
                       <li key={fIdx} className={`flex items-start gap-2 ${theme.textMuted}`}>
                         <span className={theme.textMain}>—</span>
                         <span
-                          contentEditable
+                          contentEditable={!isFullscreen}
                           suppressContentEditableWarning
                           onBlur={(e) => {
                             const nextFeatures = [...tier.features];
@@ -1293,7 +1293,7 @@ export default function CanvasFrame({
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <h3
-                        contentEditable
+                        contentEditable={!isFullscreen}
                         suppressContentEditableWarning
                         onBlur={(e) => handleTierUpdate(idx, 'name', e.currentTarget.innerText)}
                         className={`text-sm font-bold ${theme.textMain} focus:outline-none cursor-text`}
@@ -1456,7 +1456,7 @@ export default function CanvasFrame({
                   className="flex items-center justify-between gap-4 cursor-pointer"
                 >
                   <h3
-                    contentEditable
+                    contentEditable={!isFullscreen}
                     suppressContentEditableWarning
                     onClick={(e) => e.stopPropagation()}
                     onBlur={(e) => handleFaqUpdate(idx, 'q', e.currentTarget.innerText)}
@@ -1471,7 +1471,7 @@ export default function CanvasFrame({
 
                 {isOpen && (
                   <p
-                    contentEditable
+                    contentEditable={!isFullscreen}
                     suppressContentEditableWarning
                     onBlur={(e) => handleFaqUpdate(idx, 'a', e.currentTarget.innerText)}
                     className={`mt-2.5 text-xs leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
@@ -1642,7 +1642,7 @@ export default function CanvasFrame({
         {sections.announcement && pageData.announcement && (
           <div className={`px-4 py-2.5 text-center text-xs border-b ${theme.borderClass} ${theme.surfaceClass}`}>
             <span
-              contentEditable
+              contentEditable={!isFullscreen}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField('announcement', e.currentTarget.innerText)}
               className={`${theme.textMain} font-medium focus:outline-none cursor-text`}
@@ -1656,7 +1656,7 @@ export default function CanvasFrame({
         <header className={`border-b ${theme.borderClass} px-6 md:px-12 py-5 flex items-center justify-between sticky top-0 z-20 ${theme.bgClass}/95 backdrop-blur-sm`}>
           <div className="flex items-center gap-6">
             <span
-              contentEditable
+              contentEditable={!isFullscreen}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField('brandName', e.currentTarget.innerText)}
               className={`font-bold text-base md:text-lg tracking-tight ${theme.textMain} focus:outline-none cursor-text`}

@@ -1,15 +1,7 @@
 import React, { useState } from 'react';
 import { DESIGN_THEMES, DEFAULT_SECTION_ORDER, DEFAULT_LAYOUTS } from '../engine/templates';
 
-export default function CodeExportModal({
-  isOpen,
-  onClose,
-  pageData,
-  activeThemeKey,
-}) {
-  const [copied, setCopied] = useState(false);
-  if (!isOpen) return null;
-
+export function buildStandaloneHTML(pageData, activeThemeKey) {
   const theme = DESIGN_THEMES[activeThemeKey] || DESIGN_THEMES.editorial;
   const currency = pageData.currency || 'ج.م';
   const waPhone = pageData.whatsappPhone || '201000000000';
@@ -270,7 +262,7 @@ export default function CodeExportModal({
     .map((secKey) => (exportBuilders[secKey] ? exportBuilders[secKey]() : ''))
     .join('\n');
 
-  const standaloneHtml = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -314,6 +306,18 @@ ${orderedSectionsHtml}
   </script>
 </body>
 </html>`;
+}
+
+export default function CodeExportModal({
+  isOpen,
+  onClose,
+  pageData,
+  activeThemeKey,
+}) {
+  const [copied, setCopied] = useState(false);
+  if (!isOpen) return null;
+
+  const standaloneHtml = buildStandaloneHTML(pageData, activeThemeKey);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(standaloneHtml);

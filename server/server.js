@@ -36,33 +36,68 @@ const writePages = (pages) => {
 };
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'PageCraft Studio API', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'PageCraft Studio Live Publishing API',
+    timestamp: new Date().toISOString(),
+  });
 });
 
-app.post('/api/pages', (req, res) => {
+// List all published/saved projects
+app.get('/api/pages', (req, res) => {
   try {
-    const { id, pageData, theme } = req.body;
-    const pageId = id || 'page_' + Math.random().toString(36).substring(2, 10);
     const pages = readPages();
-
-    pages[pageId] = {
-      id: pageId,
-      pageData,
-      theme: theme || 'editorial',
-      updatedAt: new Date().toISOString(),
-    };
-
-    writePages(pages);
-    res.status(200).json({ success: true, pageId, data: pages[pageId] });
+    res.status(200).json({
+      success: true,
+      count: Object.keys(pages).length,
+      data: Object.values(pages),
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.get('/api/pages/:id', (req, res) => {
+// Save or Publish a project with custom slug
+app.post('/api/pages', (req, res) => {
   try {
+    const { id, slug, name, pageData, theme, html, publishedAt } = req.body;
+    const pageSlug = (slug || id || 'site_' + Math.random().toString(36).substring(2, 8))
+      .trim()
+      .toLowerCase();
     const pages = readPages();
-    const page = pages[req.params.id];
+
+    pages[pageSlug] = {
+      id: id || pageSlug,
+      slug: pageSlug,
+      name: name || pageData?.brandName || 'مشروع منشور',
+      pageData,
+      theme: theme || 'editorial',
+      html: html || '',
+      publishedAt: publishedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    writePages(pages);
+    res.status(200).json({
+      success: true,
+      slug: pageSlug,
+      liveUrl: `/p/${pageSlug}`,
+      data: pages[pageSlug],
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Retrieve a published project by slug or id
+app.get('/api/pages/:slug', (req, res) => {
+  try {
+    const target = req.params.slug;
+    const pages = readPages();
+    const page =
+      pages[target] ||
+      Object.values(pages).find((p) => p.id === target || p.slug === target);
+
     if (!page) {
       return res.status(404).json({ success: false, error: 'الصفحة غير موجودة' });
     }
@@ -70,6 +105,42 @@ app.get('/api/pages/:id', (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// Delete a published project
+app.delete('/api/pages/:slug', (req, res) => {
+  try {
+    const target = req.params.slug;
+    const pages = readPages();
+    if (pages[target]) {
+      delete pages[target];
+      writePages(pages);
+    }
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Serve standalone HTML directly at /p/:slug when hitting the Express server
+app.get('/p/:slug', (req, res) => {
+  const target = req.params.slug;
+  const pages = readPages();
+  const page =
+    pages[target] ||
+    Object.values(pages).find((p) => p.id === target || p.slug === target);
+
+  if (!page || !page.html) {
+    return res.status(404).send(`<!DOCTYPE html>
+      <html lang="ar" dir="rtl">
+      <head><meta charset="UTF-8"><title>الصفحة غير موجودة</title></head>
+      <body style="font-family:sans-serif;text-align:center;padding:80px;">
+        <h2>عذراً، هذا الموقع غير منشور حالياً</h2>
+      </body>
+      </html>`);
+  }
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(page.html);
 });
 
 app.listen(PORT, () => {

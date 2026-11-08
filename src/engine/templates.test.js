@@ -7,6 +7,13 @@ import {
   DEFAULT_LAYOUTS,
   SECTION_LAYOUT_OPTIONS,
 } from './templates';
+import {
+  sanitizeSlug,
+  suggestSlugFromBrand,
+  buildNewProject,
+  cloneProject,
+  createInitialProjects,
+} from './projects';
 
 describe('Full-Scale Editorial Page Builder Engine', () => {
   it('extracts custom brand name and price directly from user prompt', () => {
@@ -48,6 +55,27 @@ describe('Full-Scale Editorial Page Builder Engine', () => {
     expect(SECTION_LAYOUT_OPTIONS.hero.length).toBe(3);
     expect(SECTION_LAYOUT_OPTIONS.catalog.length).toBe(3);
     expect(DEFAULT_LAYOUTS.hero).toBe('editorial');
+  });
+
+  it('manages multi-project creation, cloning, and custom URL slugs', () => {
+    expect(sanitizeSlug('Athar Perfumes Store!')).toBe('athar-perfumes-store');
+    expect(suggestSlugFromBrand('أثر للعطور')).toBe('athar-perfumes');
+
+    const initial = createInitialProjects();
+    expect(initial.length).toBe(3);
+
+    const newProj = buildNewProject({
+      name: 'دار الساعات',
+      prompt: 'متجر ساعات كلاسيكية بأسعار تبدأ من 1200 ج.م',
+      theme: 'charcoal',
+      existingSlugs: ['athar-perfumes'],
+    });
+    expect(newProj.name).toBe('دار الساعات');
+    expect(newProj.slug).toBeTruthy();
+
+    const cloned = cloneProject(newProj, [newProj.slug]);
+    expect(cloned.id).not.toBe(newProj.id);
+    expect(cloned.name).toContain('نسخة');
   });
 
   it('contains all calm design themes and curated image library', () => {

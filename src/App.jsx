@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import CanvasFrame from './components/CanvasFrame';
 import CodeExportModal from './components/CodeExportModal';
 import ImageEditorModal from './components/ImageEditorModal';
+import ProjectsModal from './components/ProjectsModal';
+import PublishModal from './components/PublishModal';
+import PublishedSiteView from './components/PublishedSiteView';
 import {
   generatePageData,
   generateWithGeminiAI,
@@ -12,6 +15,16 @@ import {
   DEFAULT_LAYOUTS,
   SECTION_LAYOUT_OPTIONS,
 } from './engine/templates';
+import {
+  loadProjectsWorkspace,
+  saveProjectsWorkspace,
+  getSavedActiveProjectId,
+  saveActiveProjectId,
+  buildNewProject,
+  cloneProject,
+  publishProjectToServer,
+  getLiveShareUrl,
+} from './engine/projects';
 
 const SECTION_LABELS = {
   hero: 'القسم الرئيسي (Hero)',
@@ -25,20 +38,49 @@ const SECTION_LABELS = {
   orderForm: 'نموذج السلة وإتمام الطلب',
 };
 
+function detectLiveRouteSlug() {
+  if (typeof window === 'undefined') return null;
+  const path = window.location.pathname;
+  if (path.startsWith('/p/')) {
+    const raw = path.slice(3).replace(/\/+$/, '');
+    if (raw) return decodeURIComponent(raw);
+  }
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('p')) {
+    return params.get('p');
+  }
+  return null;
+}
+
 export default function App() {
-  const [sidebarTab, setSidebarTab] = useState('design'); // Open on 'design' or 'prompt'
+  // Check if visiting a live published site URL (/p/:slug)
+  const [liveRouteSlug, setLiveRouteSlug] = useState(() => detectLiveRouteSlug());
+
+  // Multi-Project Workspace State
+  const [projects, setProjects] = useState(() => loadProjectsWorkspace());
+  const [activeProjectId, setActiveProjectId] = useState(() => {
+    const initialList = loadProjectsWorkspace();
+    return getSavedActiveProjectId(initialList);
+  });
+
+  const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];
+
+  const [sidebarTab, setSidebarTab] = useState('design');
   const [promptInput, setPromptInput] = useState(
-    'دار عطور محلية باسم "أثر" تعتمد على الزيوت الطبيعية الخالصة وتعتيق الأخشاب العطرية يدوياً بأسعار تبدأ من 340 ج.م'
+    activeProject?.prompt ||
+      'دار عطور محلية باسم "أثر" تعتمد على الزيوت الطبيعية الخالصة وتعتيق الأخشاب العطرية يدوياً بأسعار تبدأ من 340 ج.م'
   );
   const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem('pagecraft_gemini_key') || '');
   const [showKeyField, setShowKeyField] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState('');
 
-  const [activeThemeKey, setActiveThemeKey] = useState('editorial');
+  const [activeThemeKey, setActiveThemeKey] = useState(activeProject?.theme || 'editorial');
   const [deviceView, setDeviceView] = useState('desktop');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
 
   // Drag and Drop state for section reordering
   const [draggedSection, setDraggedSection] = useState(null);
@@ -52,37 +94,137 @@ export default function App() {
     onSelect: null,
   });
 
-  // Main Page Data State
-  const [pageData, setPageData] = useState(() => {
-    try {
-      const saved = localStorage.getItem('pagecraft_v4_data');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...parsed,
-          sectionOrder: parsed.sectionOrder || [...DEFAULT_SECTION_ORDER],
-          layouts: { ...DEFAULT_LAYOUTS, ...(parsed.layouts || {}) },
-          sections: { ...DEFAULT_SECTIONS, ...(parsed.sections || {}) },
-        };
-      }
-    } catch {
-      // ignore
-    }
-    return generatePageData(
-      'دار عطور محلية باسم "أثر" تعتمد على الزيوت الطبيعية الخالصة وتعتيق الأخشاب العطرية يدوياً بأسعار تبدأ من 340 ج.م',
-      'editorial'
-    );
-  });
+  // Main Page Data State synced with active project
+  const [pageData, setPageData] = useState(() => activeProject.pageData);
 
   const [history, setHistory] = useState([]);
 
+  // Sync active project changes into the multi-project workspace
   useEffect(() => {
+    setProjects((prevProjects) => {
+      const updated = prevProjects.map((proj) => {
+        if (proj.id !== activeProjectId) return proj;
+        return {
+          ...proj,
+          name: pageData.brandName || proj.name,
+          prompt: promptInput,
+          theme: activeThemeKey,
+          pageData,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      saveProjectsWorkspace(updated);
+      return updated;
+    });
     try {
       localStorage.setItem('pagecraft_v4_data', JSON.stringify(pageData));
     } catch {
       // ignore storage quota errors
     }
-  }, [pageData]);
+  }, [pageData, activeThemeKey, promptInput, activeProjectId]);
+
+  // Listen to browser back/forward for /p/:slug
+  useEffect(() => {
+    const handlePopState = () => {
+      setLiveRouteSlug(detectLiveRouteSlug());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Multi-Project Handlers
+  const handleSelectProject = (projectId) => {
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+    setActiveProjectId(target.id);
+    saveActiveProjectId(target.id);
+    setPageData(target.pageData);
+    setActiveThemeKey(target.theme || 'editorial');
+    setPromptInput(target.prompt || '');
+    setHistory([]);
+  };
+
+  const handleCreateProject = ({ name, prompt, theme }) => {
+    const existingSlugs = projects.map((p) => p.slug);
+    const created = buildNewProject({ name, prompt, theme, existingSlugs });
+    const nextList = [created, ...projects];
+    setProjects(nextList);
+    saveProjectsWorkspace(nextList);
+    setActiveProjectId(created.id);
+    saveActiveProjectId(created.id);
+    setPageData(created.pageData);
+    setActiveThemeKey(created.theme);
+    setPromptInput(created.prompt);
+    setHistory([]);
+  };
+
+  const handleDuplicateProject = (projectId) => {
+    const source = projects.find((p) => p.id === projectId);
+    if (!source) return;
+    const existingSlugs = projects.map((p) => p.slug);
+    const cloned = cloneProject(source, existingSlugs);
+    const nextList = [cloned, ...projects];
+    setProjects(nextList);
+    saveProjectsWorkspace(nextList);
+    setActiveProjectId(cloned.id);
+    saveActiveProjectId(cloned.id);
+    setPageData(cloned.pageData);
+    setActiveThemeKey(cloned.theme);
+    setPromptInput(cloned.prompt);
+    setHistory([]);
+  };
+
+  const handleDeleteProject = (projectId) => {
+    if (projects.length <= 1) return;
+    const remaining = projects.filter((p) => p.id !== projectId);
+    setProjects(remaining);
+    saveProjectsWorkspace(remaining);
+    if (projectId === activeProjectId) {
+      const nextActive = remaining[0];
+      setActiveProjectId(nextActive.id);
+      saveActiveProjectId(nextActive.id);
+      setPageData(nextActive.pageData);
+      setActiveThemeKey(nextActive.theme);
+      setPromptInput(nextActive.prompt);
+      setHistory([]);
+    }
+  };
+
+  const handleRenameProject = (projectId, newName) => {
+    const updated = projects.map((proj) => {
+      if (proj.id !== projectId) return proj;
+      const nextPageData = { ...proj.pageData, brandName: newName };
+      return { ...proj, name: newName, pageData: nextPageData };
+    });
+    setProjects(updated);
+    saveProjectsWorkspace(updated);
+    if (projectId === activeProjectId) {
+      setPageData((prev) => ({ ...prev, brandName: newName }));
+    }
+  };
+
+  const handlePublishActiveProject = async (customSlug) => {
+    const currentObj = {
+      ...activeProject,
+      slug: customSlug || activeProject.slug,
+      name: pageData.brandName || activeProject.name,
+      theme: activeThemeKey,
+      pageData,
+    };
+    const result = await publishProjectToServer(currentObj);
+    const nextList = projects.map((p) => (p.id === activeProjectId ? result.project : p));
+    setProjects(nextList);
+    saveProjectsWorkspace(nextList);
+    return result;
+  };
+
+  const handleUnpublishActiveProject = () => {
+    const nextList = projects.map((p) =>
+      p.id === activeProjectId ? { ...p, isPublished: false } : p
+    );
+    setProjects(nextList);
+    saveProjectsWorkspace(nextList);
+  };
 
   const handleSaveKey = (val) => {
     setGeminiKey(val);
@@ -259,6 +401,20 @@ export default function App() {
   const currentSectionOrder = pageData.sectionOrder || DEFAULT_SECTION_ORDER;
   const currentLayouts = { ...DEFAULT_LAYOUTS, ...(pageData.layouts || {}) };
 
+  // If visiting /p/:slug, render the standalone live published site
+  if (liveRouteSlug) {
+    return (
+      <PublishedSiteView
+        slug={liveRouteSlug}
+        onExitToStudio={() => {
+          window.history.pushState({}, '', '/');
+          setLiveRouteSlug(null);
+          document.title = 'مِعمار الصفحات | استوديو تصميم صفحات الهبوط';
+        }}
+      />
+    );
+  }
+
   if (isFullscreen) {
     return (
       <div className="min-h-screen bg-zinc-100 relative">
@@ -283,25 +439,69 @@ export default function App() {
     );
   }
 
+  const liveShareUrl = getLiveShareUrl(activeProject?.slug || 'site');
+
   return (
     <div className="min-h-screen bg-[#ECEAE4] text-zinc-900 flex flex-col lg:flex-row font-sans">
       {/* Right Sidebar: Comprehensive Multi-Tab Editor */}
       <aside className="w-full lg:w-[390px] xl:w-[420px] bg-[#F7F6F2] border-b lg:border-b-0 lg:border-l border-[#DFDDD6] flex flex-col shrink-0 lg:h-screen lg:sticky lg:top-0">
-        {/* Studio Header */}
-        <div className="px-6 py-4 border-b border-[#E5E3DC] flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-bold tracking-tight text-zinc-900">مِعمار الصفحات</h1>
-            <p className="text-[11px] text-zinc-500">محرر تخطيطات صفحات الهبوط والكتالوج</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {history.length > 0 && (
+        {/* Studio Header + Active Project Switcher */}
+        <div className="px-5 py-3.5 border-b border-[#E5E3DC] space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-base font-bold tracking-tight text-zinc-900">مِعمار الصفحات</h1>
+              <p className="text-[11px] text-zinc-500">محرر تخطيطات صفحات الهبوط والكتالوج</p>
+            </div>
+            <div className="flex items-center gap-2.5">
+              {history.length > 0 && (
+                <button
+                  onClick={handleUndo}
+                  className="text-[11px] text-zinc-600 hover:text-zinc-900 underline cursor-pointer"
+                >
+                  تراجع
+                </button>
+              )}
               <button
-                onClick={handleUndo}
-                className="text-[11px] text-zinc-600 hover:text-zinc-900 underline cursor-pointer"
+                type="button"
+                onClick={() => setShowProjectsModal(true)}
+                className="px-2.5 py-1.5 bg-white hover:bg-[#ECEAE3] text-zinc-900 border border-[#D8D5CD] rounded text-[11px] font-semibold transition-colors cursor-pointer"
               >
-                تراجع
+                المشاريع ({projects.length})
               </button>
-            )}
+            </div>
+          </div>
+
+          {/* Active Project Status Bar */}
+          <div className="px-3 py-2 rounded bg-white border border-[#E2DFD7] flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-2 truncate">
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  activeProject?.isPublished ? 'bg-emerald-600' : 'bg-zinc-400'
+                }`}
+              />
+              <span className="text-zinc-500">المشروع:</span>
+              <strong className="text-zinc-900 truncate">
+                {pageData.brandName || activeProject?.name}
+              </strong>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowProjectsModal(true)}
+                className="text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
+              >
+                تبديل
+              </button>
+              <span className="text-zinc-300">|</span>
+              <button
+                type="button"
+                onClick={() => setShowPublishModal(true)}
+                className="font-semibold text-zinc-900 hover:underline cursor-pointer"
+              >
+                {activeProject?.isPublished ? 'الرابط الحي' : 'نشر الآن'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -805,14 +1005,21 @@ export default function App() {
           )}
         </div>
 
-        {/* Bottom Export Bar */}
-        <div className="p-5 border-t border-[#E5E3DC] bg-[#F1EFEA]">
+        {/* Bottom Publish & Export Bar */}
+        <div className="p-4 border-t border-[#E5E3DC] bg-[#F1EFEA] grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowPublishModal(true)}
+            className="py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
+          >
+            نشر برابط حي مستقل
+          </button>
           <button
             type="button"
             onClick={() => setShowExportModal(true)}
-            className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
+            className="py-2.5 px-3 bg-white hover:bg-[#ECEAE3] text-zinc-900 border border-[#D8D5CD] text-xs font-semibold rounded transition-colors cursor-pointer"
           >
-            تصدير الموقع الكامل (HTML)
+            تصدير الكود (HTML)
           </button>
         </div>
       </aside>
@@ -843,12 +1050,35 @@ export default function App() {
             >
               الجوال
             </button>
+
+            <span className="text-zinc-300 hidden sm:inline">|</span>
+
+            <a
+              href={liveShareUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-600 hover:text-zinc-950 bg-white/80 px-2.5 py-1 rounded border border-[#DFDDD6]"
+              title="فتح الرابط الحي المستقل في نافذة جديدة"
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  activeProject?.isPublished ? 'bg-emerald-600' : 'bg-zinc-400'
+                }`}
+              />
+              <span className="dir-ltr">/p/{activeProject?.slug}</span>
+              <span>↗</span>
+            </a>
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="hidden md:inline text-[11px] text-zinc-400">
-              مرر الماوس فوق أي قسم في المعاينة لتغيير تخطيطه أو ترتيبه مباشرة
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowProjectsModal(true)}
+              className="text-zinc-600 hover:text-zinc-900 font-medium cursor-pointer"
+            >
+              إدارة المشاريع ({projects.length})
+            </button>
+            <span className="text-zinc-300">|</span>
             <button
               onClick={() => setIsFullscreen(true)}
               className="text-zinc-700 font-medium hover:text-zinc-900 cursor-pointer"
@@ -885,6 +1115,28 @@ export default function App() {
             imagePickerConfig.onSelect(newUrl);
           }
         }}
+      />
+
+      {/* Multi-Project Workspace Modal */}
+      <ProjectsModal
+        isOpen={showProjectsModal}
+        onClose={() => setShowProjectsModal(false)}
+        projects={projects}
+        activeProjectId={activeProjectId}
+        onSelectProject={handleSelectProject}
+        onCreateProject={handleCreateProject}
+        onDuplicateProject={handleDuplicateProject}
+        onDeleteProject={handleDeleteProject}
+        onRenameProject={handleRenameProject}
+      />
+
+      {/* Live Publishing Center Modal */}
+      <PublishModal
+        isOpen={showPublishModal}
+        onClose={() => setShowPublishModal(false)}
+        project={activeProject}
+        onPublish={handlePublishActiveProject}
+        onUnpublish={handleUnpublishActiveProject}
       />
 
       {/* Code Export Modal */}
