@@ -1,89 +1,127 @@
-# 🎨 PageCraft Studio (صَانِع)
-### Tactile Prompt-to-Micro-Landing-Page Studio for Creators & Businesses
+# مِعمار الصفحات — PageCraft Studio
 
-[![Tests](https://img.shields.io/badge/tests-9%20passed%20(100%25)-emerald.svg)](./src/engine/templates.test.js)
-[![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8.svg)](https://tailwindcss.com)
-[![Vite](https://img.shields.io/badge/Vite-6-646cff.svg)](https://vite.dev)
-[![Vitest](https://img.shields.io/badge/Vitest-5-green.svg)](https://vitest.dev)
+<div align="center">
 
-> **PageCraft Studio** is a creative, non-generic landing page engine designed to break free from cookie-cutter AI chat interfaces. It functions as a **tactile design studio** (inspired by Framer, Linear, and Raycast) where developers, freelancers, and businesses can turn a one-line prompt into a high-converting, mobile-first micro-landing page with real-time inline editing, multi-device frames, WhatsApp lead capture, and zero-dependency standalone HTML export.
+**An Editorial Prompt-to-Storefront & Interactive Landing Page Architecture Studio**  
+*محرر معماري لبناء صفحات الهبوط والمتاجر التفاعلية المصغرة من الوصف النصي*
 
----
+[![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-18181B?style=for-the-badge)](https://officialmosaleh.github.io/pagecraft-studio/)
+[![React 19](https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react)](https://react.dev/)
+[![Vite 8](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite)](https://vite.dev/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
+[![Vitest](https://img.shields.io/badge/Tested_with-Vitest-6E9F18?style=for-the-badge&logo=vitest)](https://vitest.dev/)
 
-## 🌟 What Makes This Creative & Different (Not a Generic AI Chat)
+[**🔗 جرب النسخة الحية مباشرة (Live Demo)**](https://officialmosaleh.github.io/pagecraft-studio/)
 
-1. **No Boring Chatbot Interface:**
-   - Instead of a generic ChatGPT textbox, PageCraft provides a **tactile studio command bar** with curated aesthetic switches and instant generative feedback.
-2. **Editorial & Curated Aesthetics:**
-   - **Minimal Luxury (Obsidian & Gold / Serif Typography):** Tailored for high-end perfumery, jewelry, and fashion.
-   - **Modern Bento SaaS (Sky Tech / Clean Borders):** Ideal for tech startups, developers, and UI/UX agencies.
-   - **Warm Artisan (Terracotta & Craft):** Crafted for specialty coffee roasteries, organic products, and boutique food.
-   - **Electric Emerald / Cyberpunk:** Designed for intense bootcamps, masterclasses, and crypto/Web3.
-3. **Live In-Place Inline Editing:**
-   - Click directly on any headline, subtitle, badge, or price on the canvas to edit text on the fly.
-4. **Interactive Multi-Device Switcher:**
-   - Test your page in real-time inside simulated iPhone (with bezel & dynamic notch), Tablet, and Fullscreen Desktop viewports.
-5. **Fintech & Local Lead Generation:**
-   - Generates instant direct-order WhatsApp links (`https://wa.me/...`) with pre-filled promotional messages.
-6. **Single-File Zero-Dependency Export:**
-   - Export standalone `index.html` bundled with CDN Tailwind and Google Fonts (Cairo & Playfair Display), ready to drop into Vercel, Netlify, or GitHub Pages.
+</div>
 
 ---
 
-## 📐 Architecture & Generative Pipeline
+## Overview | نبذة عن المشروع
+
+**PageCraft Studio (مِعمار الصفحات)** is a full-scale Arabic-first visual landing page and interactive product catalog builder. Designed with an **Editorial Minimalist** philosophy (warm paper tones, hairline architectural borders, zero visual clutter), it transforms natural-language business descriptions into complete, multi-section websites with working shopping carts and itemized WhatsApp checkout.
+
+تم تصميم **مِعمار الصفحات** ليكون أداة عملية حقيقية لأصحاب المشاريع والمصممين لبناء صفحات هبوط ومتاجر مصغرة كاملة التفاعل (كتالوج منتجات، سلة مشتريات، باقات أسعار، أسئلة شائعة، وإرسال الطلبات عبر واتساب) مع تحكم كامل في التخطيطات والألوان والخطوط العربية.
+
+---
+
+## Key Engineering Highlights | أبرز المميزات الهندسية
+
+### 1. Serverless Delta-Compressed Shareable Links (`?s=...`)
+- **Zero-Database Cloud Sharing:** Users can share their customized websites with clients anywhere in the world via a self-contained URL (`https://officialmosaleh.github.io/pagecraft-studio/?s=...`).
+- **Delta Compression Engine (`src/engine/projects.js`):** Instead of serializing the entire 15KB state into the URL, the encoder computes a structural diff between the deterministic base template (`generatePageData(prompt, theme)`) and the user's modifications, encoding only the delta via UTF-8 Base64URL.
+
+### 2. Multi-Layout Composable Section Pipeline & Drag-and-Drop Reordering
+- **9 Modular Sections:** `Hero`, `Stats`, `Product Catalog`, `Quality Features`, `Process Steps`, `Pricing Tiers`, `Testimonials`, `FAQ Accordion`, and `WhatsApp Order Checkout`.
+- **Multiple Architectural Variants per Section:**
+  - **Hero:** `Editorial Classic` | `50/50 Split` | `Centered Panoramic`
+  - **Catalog:** `3-Column Grid` | `Horizontal Detailed Menu` | `Featured Spotlight + Grid`
+  - **Features:** `3 Numbered Columns` | `Editorial Horizontal Rows` | `Framed Cards`
+  - **Stats, Process, Pricing, Testimonials:** Multiple layout variants switchable on the fly.
+- **Dual Reordering UX:** Reorder sections via **HTML5 Drag-and-Drop** in the sidebar or directly via the **On-Canvas Floating Hover Toolbar**.
+
+### 3. Dynamic Arabic Typography & Custom Brand Identity Engine
+- **6 Curated Arabic Google Fonts:** Instant switching between `Cairo`, `Tajawal`, `IBM Plex Sans Arabic`, `Almarai`, `Readex Pro`, and `Amiri`.
+- **Granular Font-Size Scaling:** 4 global presets (`Small`, `Medium`, `Large`, `Extra Large`) plus 5 independent pixel-level sliders (`Hero Headline`, `Section Titles`, `Card Titles`, `Body Text`, `Prices & Numbers`) powered by scoped CSS custom properties.
+- **Custom Brand Color Pickers:** 4 base editorial themes (`Editorial Warm`, `Minimal White`, `Forest Organic`, `Charcoal Executive`), 6 curated brand swatches, and 4 live HTML5 color pickers (`Primary Accent`, `Page Background`, `Card Surface`, `Typography Color`).
+
+### 4. True Responsive Container Simulation & Single-File HTML Compiler
+- **Container-Isolated Mobile Viewport (`.pagecraft-mobile-mode`):** Accurately simulates a `375px` mobile viewport inside a desktop browser by overriding grid column spans, flex directions, and proportional font scaling.
+- **Standalone HTML Compiler (`src/components/CodeExportModal.jsx`):** Compiles the entire customized page—including custom section order, active layout variants, typography scales, custom colors, and WhatsApp order logic—into a single, zero-dependency `index.html` file ready for instant hosting.
+
+---
+
+## System Architecture | الهيكلة المعمارية
 
 ```mermaid
 flowchart LR
-    Prompt["✍️ Natural Language Prompt\n(e.g. قهوة مختصة وروستري)"] --> Engine["Generative Copywriting & Layout Engine"]
-    Theme["🎨 Curated Theme Selection\n(Luxury / Bento / Artisan / Neon)"] --> Engine
-    Engine --> Canvas["Tactile Studio Canvas\n(Inline Editing & Viewport Switcher)"]
-    Canvas --> WhatsApp["Instant WhatsApp Lead Generation"]
-    Canvas --> Export["Standalone Clean HTML Export\n(Single-File Deployable)"]
+    A["Natural Language Prompt\n(Local NLP + Optional Gemini API)"] --> B["Template & Niche Engine\n(src/engine/templates.js)"]
+    B --> C["Multi-Project Workspace\n(src/engine/projects.js)"]
+    C --> D["Interactive Visual Canvas\n(src/components/CanvasFrame.jsx)"]
+    D --> E["Serverless Delta URL Encoder\n(?s=Base64URL_Diff)"]
+    D --> F["Standalone HTML Compiler\n(index.html Export)"]
+    D --> G["Express REST API\n(server/server.js)"]
 ```
 
 ---
 
-## 🧪 Automated Testing Suite (Vitest)
+## Tech Stack | التقنيات المستخدمة
 
-All generative templates and niche detectors are backed by automated unit tests:
-
-```bash
-npm test
-```
-
-### Coverage (9/9 Passed):
-- ✅ Niche recognition (perfume, specialty coffee, SaaS, intensive bootcamps).
-- ✅ Theme mapping and typography tokens integrity.
-- ✅ Custom prompt fallback without structural layout breaking.
-- ✅ Financial math & proportional billing algorithms.
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend Framework** | React 19 (Hooks, ContentEditable Inline Sync, HTML5 Drag & Drop) |
+| **Build Tool & Bundler** | Vite 8 |
+| **Styling & Design System** | Tailwind CSS v4 + Scoped CSS Custom Properties |
+| **Backend API (Optional)** | Node.js + Express 5 (`server/server.js` — JSON persistence & `/p/:slug` SSR) |
+| **Testing** | Vitest (Unit & Engine Tests in `src/engine/templates.test.js`) |
 
 ---
 
-## 🚀 Quick Start
+## Quick Start | طريقة التشغيل محلياً
 
-### 1. Install Dependencies
 ```bash
+# 1. Clone the repository
+git clone https://github.com/OfficialMoSaleh/pagecraft-studio.git
+cd pagecraft-studio
+
+# 2. Install dependencies
 npm install
-```
 
-### 2. Launch Dev Studio
-```bash
+# 3. Start the Vite development studio
 npm run dev
-```
-Open **`http://localhost:5173`** in your browser.
 
-### 3. Run Automated Tests
-```bash
+# 4. (Optional) Start the Express persistence server on port 3001
+npm run server
+
+# 5. Run the unit test suite
 npm test
-```
-
-### 4. Build Production Bundle
-```bash
-npm run build
 ```
 
 ---
 
-## 📄 License
-MIT License. Crafted for engineering and design excellence.
+## Project Structure | هيكل الملفات
+
+```text
+pagecraft-studio/
+├── src/
+│   ├── engine/
+│   │   ├── templates.js        # Niche detection, multi-layout definitions, fonts & brand palettes
+│   │   ├── projects.js         # Multi-project workspace & Serverless Delta URL Encoder/Decoder
+│   │   └── templates.test.js   # Vitest unit test suite
+│   ├── components/
+│   │   ├── CanvasFrame.jsx     # Interactive WYSIWYG canvas, cart logic & on-canvas section toolbar
+│   │   ├── ProjectsModal.jsx   # Multi-project switcher, cloner & creator
+│   │   ├── PublishModal.jsx    # Serverless cloud link generator & HTML downloader
+│   │   ├── PublishedSiteView.jsx # Clean visitor-facing storefront renderer
+│   │   ├── ImageEditorModal.jsx  # Local image uploader (Base64) & curated photo library
+│   │   └── CodeExportModal.jsx   # Single-file standalone HTML compiler
+│   └── App.jsx                 # Main studio workspace & 3-tab controller
+└── server/
+    └── server.js               # Express API for local project persistence
+```
+
+---
+
+## License
+
+MIT License — Built by [Mohamed Saleh (@OfficialMoSaleh)](https://github.com/OfficialMoSaleh).

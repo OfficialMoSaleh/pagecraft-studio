@@ -4,6 +4,7 @@ import {
   DEFAULT_LAYOUTS,
   DEFAULT_SECTIONS,
   DEFAULT_TYPOGRAPHY,
+  DEFAULT_CUSTOM_COLORS,
 } from './templates';
 import { buildStandaloneHTML } from '../components/CodeExportModal';
 
@@ -59,6 +60,7 @@ export function normalizePageData(pageData) {
     layouts: { ...DEFAULT_LAYOUTS, ...(pageData.layouts || {}) },
     sections: { ...DEFAULT_SECTIONS, ...(pageData.sections || {}) },
     typography: { ...DEFAULT_TYPOGRAPHY, ...(pageData.typography || {}) },
+    customColors: { ...DEFAULT_CUSTOM_COLORS, ...(pageData.customColors || {}) },
   };
 }
 
@@ -246,6 +248,100 @@ export function cloneProject(sourceProject, existingSlugs = []) {
     updatedAt: now,
     publishedSnapshot: null,
   };
+}
+
+export const PUBLIC_GITHUB_PAGES_URL = 'https://officialmosaleh.github.io/pagecraft-studio/';
+
+/**
+ * Delta-based UTF-8 Base64URL encoder for serverless shareable links (?s=...)
+ * Compares project.pageData against the deterministic template for (prompt, theme)
+ * and encodes only the modified fields so the URL stays compact and fast.
+ */
+export function encodeShareableToken(project) {
+  if (!project || !project.pageData) return '';
+  const prompt = project.prompt || project.pageData.headline || 'مشروع جديد';
+  const theme = project.theme || 'editorial';
+  const baseData = generatePageData(prompt, theme);
+  const currentData = project.pageData;
+
+  const diff = {};
+  for (const key of Object.keys(currentData)) {
+    // Skip huge base64 data URLs in URL query string to keep link shareable
+    if (key === 'heroImage' && typeof currentData[key] === 'string' && currentData[key].startsWith('data:')) {
+      continue;
+    }
+    if (JSON.stringify(currentData[key]) !== JSON.stringify(baseData[key])) {
+      diff[key] = currentData[key];
+    }
+  }
+
+  const compactPayload = {
+    n: project.name || currentData.brandName,
+    s: project.slug || 'site',
+    p: prompt,
+    t: theme,
+    d: diff,
+  };
+
+  const jsonStr = JSON.stringify(compactPayload);
+  const bytes = new TextEncoder().encode(jsonStr);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function decodeShareableToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    let base64 = token.trim().replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4 !== 0) {
+      base64 += '=';
+    }
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const jsonStr = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(jsonStr);
+
+    const prompt = parsed.p || 'مشروع جديد';
+    const theme = parsed.t || 'editorial';
+    const baseData = generatePageData(prompt, theme);
+    const mergedPageData = normalizePageData({
+      ...baseData,
+      ...(parsed.d || {}),
+    });
+
+    return {
+      id: 'shared_' + (parsed.s || 'site'),
+      slug: parsed.s || 'shared-site',
+      name: parsed.n || mergedPageData.brandName || 'موقع مشترك',
+      prompt,
+      theme,
+      pageData: mergedPageData,
+      isPublished: true,
+      isServerlessShare: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function getShareableCloudUrl(project, forcePublicDomain = true) {
+  const token = encodeShareableToken(project);
+  if (
+    forcePublicDomain ||
+    typeof window === 'undefined' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+  ) {
+    return `${PUBLIC_GITHUB_PAGES_URL}?s=${token}`;
+  }
+  const baseUrl = `${window.location.origin}${window.location.pathname}`;
+  return `${baseUrl}?s=${token}`;
 }
 
 export function getLiveShareUrl(slug) {

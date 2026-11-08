@@ -16,6 +16,9 @@ import {
   SECTION_LAYOUT_OPTIONS,
   DEFAULT_TYPOGRAPHY,
   TYPOGRAPHY_PRESETS,
+  ARABIC_FONTS,
+  DEFAULT_CUSTOM_COLORS,
+  BRAND_COLOR_PRESETS,
 } from './engine/templates';
 import {
   loadProjectsWorkspace,
@@ -26,6 +29,7 @@ import {
   cloneProject,
   publishProjectToServer,
   getLiveShareUrl,
+  decodeShareableToken,
 } from './engine/projects';
 
 const SECTION_LABELS = {
@@ -54,8 +58,22 @@ function detectLiveRouteSlug() {
   return null;
 }
 
+function detectSharedSiteFromUrl() {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const sParam = params.get('s');
+  if (sParam) {
+    return decodeShareableToken(sParam);
+  }
+  if (window.location.hash.startsWith('#s=')) {
+    return decodeShareableToken(window.location.hash.slice(3));
+  }
+  return null;
+}
+
 export default function App() {
-  // Check if visiting a live published site URL (/p/:slug)
+  // Check if visiting a serverless shared link (?s=...) or local preview (/p/:slug)
+  const [sharedSite, setSharedSite] = useState(() => detectSharedSiteFromUrl());
   const [liveRouteSlug, setLiveRouteSlug] = useState(() => detectLiveRouteSlug());
 
   // Multi-Project Workspace State
@@ -403,21 +421,26 @@ export default function App() {
   const currentSectionOrder = pageData.sectionOrder || DEFAULT_SECTION_ORDER;
   const currentLayouts = { ...DEFAULT_LAYOUTS, ...(pageData.layouts || {}) };
   const currentTypography = { ...DEFAULT_TYPOGRAPHY, ...(pageData.typography || {}) };
+  const currentCustomColors = { ...DEFAULT_CUSTOM_COLORS, ...(pageData.customColors || {}) };
 
   const handleApplyTypographyPreset = (presetValues) => {
-    handleUpdateField('typography', { ...presetValues });
+    handleUpdateField('typography', {
+      ...presetValues,
+      fontFamily: currentTypography.fontFamily || 'Cairo',
+    });
   };
 
   const handleUpdateTypographyField = (field, val) => {
     handleUpdateField('typography', {
       ...currentTypography,
-      scale: 'custom',
-      [field]: Number(val),
+      scale: field === 'fontFamily' ? currentTypography.scale : 'custom',
+      [field]: field === 'fontFamily' ? val : Number(val),
     });
   };
 
   const handleStepFontSizes = (delta) => {
     handleUpdateField('typography', {
+      ...currentTypography,
       scale: 'custom',
       heroSize: Math.min(56, Math.max(20, currentTypography.heroSize + delta * 2)),
       sectionSize: Math.min(36, Math.max(15, currentTypography.sectionSize + delta * 2)),
@@ -427,15 +450,50 @@ export default function App() {
     });
   };
 
-  // If visiting /p/:slug, render the standalone live published site
-  if (liveRouteSlug) {
+  const handleUpdateCustomColor = (field, value) => {
+    handleUpdateField('customColors', {
+      ...currentCustomColors,
+      enabled: true,
+      [field]: value,
+    });
+  };
+
+  const handleApplyBrandColorPreset = (preset) => {
+    handleUpdateField('customColors', {
+      enabled: true,
+      primary: preset.primary,
+      background: preset.background,
+      surface: preset.surface,
+      text: preset.text,
+    });
+  };
+
+  const handleDisableCustomColors = () => {
+    handleUpdateField('customColors', {
+      ...currentCustomColors,
+      enabled: false,
+    });
+  };
+
+  // If visiting a serverless shared link (?s=...) or /p/:slug, render PublishedSiteView
+  if (sharedSite || liveRouteSlug) {
     return (
       <PublishedSiteView
         slug={liveRouteSlug}
+        sharedSite={sharedSite}
         onExitToStudio={() => {
-          window.history.pushState({}, '', '/');
+          window.history.pushState({}, '', window.location.pathname.replace(/\/p\/.*$/, '') || '/');
           setLiveRouteSlug(null);
+          setSharedSite(null);
           document.title = 'مِعمار الصفحات | استوديو تصميم صفحات الهبوط';
+        }}
+        onRemixSharedSite={(siteToRemix) => {
+          setPageData(siteToRemix.pageData);
+          setActiveThemeKey(siteToRemix.theme || 'editorial');
+          setPromptInput(siteToRemix.prompt || '');
+          window.history.pushState({}, '', window.location.pathname);
+          setSharedSite(null);
+          setLiveRouteSlug(null);
         }}
       />
     );
@@ -828,18 +886,35 @@ export default function App() {
           {/* TAB 3: SECTION REORDERING, LAYOUT VARIANTS, TYPOGRAPHY & THEME */}
           {sidebarTab === 'design' && (
             <div className="space-y-6">
-              {/* Color Palettes */}
-              <div className="space-y-2.5">
-                <label className="text-xs font-bold text-zinc-800 block">النمط اللوني للموقع</label>
+              {/* Color Palettes & Custom Brand Color Picker */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-zinc-800 block">
+                    السمة اللونية وألوان الهوية (Brand Colors)
+                  </label>
+                  {currentCustomColors.enabled && (
+                    <button
+                      type="button"
+                      onClick={handleDisableCustomColors}
+                      className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
+                    >
+                      العودة للثيمات الجاهزة
+                    </button>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   {Object.keys(DESIGN_THEMES).map((key) => {
                     const th = DESIGN_THEMES[key];
-                    const isSelected = activeThemeKey === key;
+                    const isSelected = activeThemeKey === key && !currentCustomColors.enabled;
                     return (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => setActiveThemeKey(key)}
+                        onClick={() => {
+                          setActiveThemeKey(key);
+                          handleDisableCustomColors();
+                        }}
                         className={`py-2 px-3 rounded text-xs font-medium border text-right transition-all cursor-pointer ${
                           isSelected
                             ? 'border-zinc-900 bg-zinc-900 text-white'
@@ -847,6 +922,106 @@ export default function App() {
                         }`}
                       >
                         {th.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Curated Brand Color Swatches + Custom HTML5 Color Pickers */}
+                <div className="p-3.5 bg-white rounded border border-[#DFDDD6] space-y-3">
+                  <span className="text-[11px] font-bold text-zinc-700 block">
+                    لوحات ألوان البراندات وتخصيص الألوان الحر:
+                  </span>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {BRAND_COLOR_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleApplyBrandColorPreset(preset)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#D8D5CD] hover:border-zinc-900 bg-[#FAF9F6] text-[11px] font-medium text-zinc-800 cursor-pointer"
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full border border-black/10 shrink-0"
+                          style={{ backgroundColor: preset.primary }}
+                        />
+                        <span>{preset.name}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-zinc-100">
+                    <label className="flex items-center justify-between p-2 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
+                      <span className="text-[11px] text-zinc-700 font-medium">لون الأزرار والبراند</span>
+                      <input
+                        type="color"
+                        value={currentCustomColors.primary}
+                        onChange={(e) => handleUpdateCustomColor('primary', e.target.value)}
+                        className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between p-2 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
+                      <span className="text-[11px] text-zinc-700 font-medium">لون خلفية الموقع</span>
+                      <input
+                        type="color"
+                        value={currentCustomColors.background}
+                        onChange={(e) => handleUpdateCustomColor('background', e.target.value)}
+                        className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between p-2 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
+                      <span className="text-[11px] text-zinc-700 font-medium">لون البطاقات</span>
+                      <input
+                        type="color"
+                        value={currentCustomColors.surface}
+                        onChange={(e) => handleUpdateCustomColor('surface', e.target.value)}
+                        className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between p-2 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
+                      <span className="text-[11px] text-zinc-700 font-medium">لون النصوص</span>
+                      <input
+                        type="color"
+                        value={currentCustomColors.text}
+                        onChange={(e) => handleUpdateCustomColor('text', e.target.value)}
+                        className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Arabic Font Family Selector */}
+              <div className="space-y-2.5 pt-4 border-t border-[#E5E3DC]">
+                <label className="text-xs font-bold text-zinc-900 block">
+                  اختيار الخط العربي للموقع (6 خطوط عربية)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ARABIC_FONTS.map((font) => {
+                    const isCurrentFont = (currentTypography.fontFamily || 'Cairo') === font.id;
+                    return (
+                      <button
+                        key={font.id}
+                        type="button"
+                        onClick={() => handleUpdateTypographyField('fontFamily', font.id)}
+                        style={{ fontFamily: font.css }}
+                        className={`p-2.5 rounded border text-right transition-all cursor-pointer ${
+                          isCurrentFont
+                            ? 'bg-zinc-900 text-white border-zinc-900'
+                            : 'bg-white text-zinc-800 border-[#D8D5CD] hover:border-zinc-500'
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{font.name}</div>
+                        <div
+                          className={`text-[10px] mt-0.5 ${
+                            isCurrentFont ? 'text-zinc-300' : 'text-zinc-500'
+                          }`}
+                        >
+                          {font.desc}
+                        </div>
                       </button>
                     );
                   })}

@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { sanitizeSlug, getLiveShareUrl } from '../engine/projects';
+import {
+  sanitizeSlug,
+  getLiveShareUrl,
+  getShareableCloudUrl,
+} from '../engine/projects';
 import { buildStandaloneHTML } from './CodeExportModal';
 
 export default function PublishModal({
@@ -11,7 +15,8 @@ export default function PublishModal({
 }) {
   const [slugInput, setSlugInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedCloud, setCopiedCloud] = useState(false);
+  const [copiedLocal, setCopiedLocal] = useState(false);
   const [publishNotice, setPublishNotice] = useState('');
 
   useEffect(() => {
@@ -23,12 +28,10 @@ export default function PublishModal({
 
   if (!isOpen || !project) return null;
 
-  const isLocalhost =
-    typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
   const cleanPreviewSlug = sanitizeSlug(slugInput || project.name);
-  const fullLiveUrl = getLiveShareUrl(cleanPreviewSlug);
+  const localPreviewUrl = getLiveShareUrl(cleanPreviewSlug);
+  const cloudShareableUrl = getShareableCloudUrl(project, true);
+  const localShareableTestUrl = getShareableCloudUrl(project, false);
 
   const handlePublishClick = async (e) => {
     e.preventDefault();
@@ -37,20 +40,28 @@ export default function PublishModal({
     try {
       await onPublish(cleanPreviewSlug);
       setSlugInput(cleanPreviewSlug);
-      setPublishNotice(
-        isLocalhost
-          ? 'تم حفظ وتفعيل رابط المعاينة المحلية بنجاح. لتسليم الموقع لعميلك على الإنترنت استخدم تحميل ملف (index.html) بالأسفل.'
-          : 'تم نشر الموقع وتحديث الرابط الحي بنجاح.'
-      );
+      setPublishNotice('تم تحديث بيانات النشر وتوليد رابط المشاركة السحابي بنجاح.');
     } finally {
       setIsPublishing(false);
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(fullLiveUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopyCloud = () => {
+    navigator.clipboard.writeText(cloudShareableUrl);
+    setCopiedCloud(true);
+    setTimeout(() => setCopiedCloud(false), 2500);
+  };
+
+  const handleCopyLocal = () => {
+    navigator.clipboard.writeText(localPreviewUrl);
+    setCopiedLocal(true);
+    setTimeout(() => setCopiedLocal(false), 2500);
+  };
+
+  const handleShareWhatsAppCloud = () => {
+    const brand = project.pageData?.brandName || project.name;
+    const text = `تفضل بمعاينة موقع "${brand}" وتصفح الكتالوج والأسعار عبر الرابط التالي:\n${cloudShareableUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleDownloadStandaloneHtml = () => {
@@ -72,15 +83,9 @@ export default function PublishModal({
         <div className="flex items-center justify-between pb-4 border-b border-[#E5E3DC]">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-zinc-900">إعدادات النشر ومشاركة الموقع</h2>
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded font-semibold border ${
-                  project.isPublished
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : 'bg-zinc-200 text-zinc-700 border-zinc-300'
-                }`}
-              >
-                {project.isPublished ? 'مُفعَّل للمعاينة' : 'مسودة'}
+              <h2 className="text-base font-bold text-zinc-900">مشاركة الموقع والنشر السحابي</h2>
+              <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                رابط مشاركة فوري بدون سيرفر
               </span>
             </div>
             <p className="text-xs text-zinc-500 mt-0.5">
@@ -97,129 +102,114 @@ export default function PublishModal({
           </button>
         </div>
 
-        {/* Clear Localhost Notice so user knows localhost is not a public internet link */}
-        {isLocalhost && (
-          <div className="p-4 rounded bg-amber-50/90 border border-amber-300 text-amber-950 space-y-2">
-            <div className="text-xs font-bold">
-              تنبيه مهم: رابط (/p/{cleanPreviewSlug}) هو رابط معاينة محلي على جهازك فقط
-            </div>
-            <p className="text-[11px] leading-relaxed text-amber-900">
-              بما أن البرنامج يعمل حالياً على جهازك الشخصي (<code className="font-mono">localhost</code>)، فإن هذا الرابط مخصص لك لتجربة الموقع كزائر على جهازك، <strong>ولن يفتح إذا أرسلته لشخص آخر على هاتفه</strong> إلا بعد رفع الموقع على استضافة عامة.
-            </p>
-            <div className="pt-1 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleDownloadStandaloneHtml}
-                className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-semibold rounded cursor-pointer"
-              >
-                تحميل ملف الموقع الجاهز ({cleanPreviewSlug}.html)
-              </button>
-              <a
-                href="https://app.netlify.com/drop"
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 bg-white hover:bg-amber-100/60 text-amber-950 border border-amber-300 text-[11px] font-semibold rounded"
-              >
-                رفع مجاني فوري على Netlify Drop ↗
-              </a>
-            </div>
+        {/* 1. SERVERLESS CLOUD SHAREABLE LINK (Works for anyone on the internet!) */}
+        <div className="p-4 rounded bg-white border-2 border-zinc-900 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-zinc-900">
+              ١. رابط المشاركة العام عبر الإنترنت (يفتح لدى أي شخص فوراً)
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 text-white font-mono">
+              Serverless URL State
+            </span>
           </div>
-        )}
 
-        {/* Custom URL Slug Form */}
-        <form onSubmit={handlePublishClick} className="space-y-4">
-          <div className="bg-white p-4 rounded border border-[#DFDDD6] space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-zinc-800 block">
-                مسار رابط المعاينة المستقلة (Slug)
-              </label>
-              {isLocalhost && (
-                <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 font-medium">
-                  معاينة محلية (Localhost)
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-zinc-500 leading-relaxed">
-              يفتح هذا المسار الموقع بدون أشرطة التعديل لتجربة سلة الشراء والطلب كما يراها العميل تماماً:
-            </p>
+          <p className="text-[11px] text-zinc-600 leading-relaxed">
+            يتم ضغط وتشفير كافة تعديلاتك (النصوص، الأسعار، التخطيط، الألوان، والخطوط) داخل الرابط نفسه ليعمل مباشرة عبر استضافة <strong>GitHub Pages</strong> العامة بدون قاعدة بيانات:
+          </p>
 
-            <div className="flex items-center bg-[#FAF9F6] border border-[#D8D5CD] rounded overflow-hidden dir-ltr">
-              <span className="px-3 py-2 bg-[#EFECE6] text-zinc-500 text-xs font-mono border-r border-[#D8D5CD] select-none">
-                {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'}/p/
-              </span>
-              <input
-                type="text"
-                value={slugInput}
-                onChange={(e) => setSlugInput(e.target.value)}
-                placeholder="athar-perfumes"
-                className="flex-1 px-3 py-2 text-xs font-mono text-zinc-900 bg-transparent focus:outline-none"
-              />
-            </div>
+          <div className="p-2.5 bg-[#FAF9F6] border border-[#D8D5CD] rounded font-mono text-[11px] text-zinc-700 truncate dir-ltr select-all">
+            {cloudShareableUrl}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleCopyCloud}
+              className="py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded text-xs font-semibold transition-colors cursor-pointer"
+            >
+              {copiedCloud ? 'تم نسخ الرابط العام!' : 'نسخ الرابط العام'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleShareWhatsAppCloud}
+              className="py-2.5 px-3 bg-[#F1EFEA] hover:bg-[#E5E2DC] text-zinc-900 border border-[#D8D5CD] rounded text-xs font-semibold transition-colors cursor-pointer"
+            >
+              إرسال لعميل عبر واتساب
+            </button>
+
+            <a
+              href={cloudShareableUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="py-2.5 px-3 bg-white hover:bg-zinc-50 text-zinc-900 border border-[#D8D5CD] rounded text-xs font-semibold text-center transition-colors"
+            >
+              فتح الرابط العام ↗
+            </a>
+          </div>
+        </div>
+
+        {/* 2. LOCAL PREVIEW & STANDALONE HTML FILE */}
+        <form onSubmit={handlePublishClick} className="p-4 bg-white rounded border border-[#DFDDD6] space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-zinc-800 block">
+              ٢. معاينة محلية على جهازك (/p/{cleanPreviewSlug}) أو تحميل ملف مستقل
+            </label>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">
+              على جهازك فقط (Localhost)
+            </span>
+          </div>
+
+          <p className="text-[11px] text-zinc-500 leading-relaxed">
+            الرابط القصير <code className="font-mono">/p/{cleanPreviewSlug}</code> مخصص للمعاينة داخل متصفح جهازك الحالي. أما لإرسال الموقع لشخص آخر فاستخدم <strong>الرابط العام المشفّر بالأعلى</strong> أو حمّل ملف <code className="font-mono">index.html</code>:
+          </p>
+
+          <div className="flex items-center bg-[#FAF9F6] border border-[#D8D5CD] rounded overflow-hidden dir-ltr">
+            <span className="px-3 py-1.5 bg-[#EFECE6] text-zinc-500 text-xs font-mono border-r border-[#D8D5CD] select-none">
+              /p/
+            </span>
+            <input
+              type="text"
+              value={slugInput}
+              onChange={(e) => setSlugInput(e.target.value)}
+              placeholder="athar-perfumes"
+              className="flex-1 px-3 py-1.5 text-xs font-mono text-zinc-900 bg-transparent focus:outline-none"
+            />
           </div>
 
           {publishNotice && (
-            <div className="p-3 rounded bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium">
+            <div className="p-2.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-medium">
               {publishNotice}
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <button
-              type="submit"
-              disabled={isPublishing}
-              className="flex-1 py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
-            >
-              {isPublishing
-                ? 'جاري الحفظ والتحديث...'
-                : 'حفظ وتحديث نسخة العرض المستقلة'}
-            </button>
-
-            {project.isPublished && (
-              <button
-                type="button"
-                onClick={onUnpublish}
-                className="px-3.5 py-2.5 bg-white hover:bg-red-50 text-red-700 border border-[#D8D5CD] hover:border-red-200 text-xs font-medium rounded transition-colors cursor-pointer"
-              >
-                تحويل لمسودة
-              </button>
-            )}
-          </div>
-        </form>
-
-        {/* Actions */}
-        <div className="p-4 bg-white rounded border border-[#DFDDD6] space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-800">خيارات المعاينة والتسليم</span>
-            {project.publishedAt && (
-              <span className="text-[10px] text-zinc-400">
-                آخر تحديث:{' '}
-                {new Date(project.publishedAt).toLocaleTimeString('ar-EG', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
             <a
-              href={fullLiveUrl}
+              href={localShareableTestUrl}
               target="_blank"
               rel="noreferrer"
-              className="py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded text-xs font-semibold text-center transition-colors"
+              className="py-2 px-3 bg-[#F1EFEA] hover:bg-[#E5E2DC] text-zinc-900 border border-[#D8D5CD] rounded text-xs font-semibold text-center transition-colors"
             >
-              فتح معاينة الموقع كزائر ↗
+              معاينة محلية كزائر ↗
             </a>
 
             <button
               type="button"
-              onClick={handleCopy}
-              className="py-2.5 px-3 bg-[#F1EFEA] hover:bg-[#E5E2DC] text-zinc-900 border border-[#D8D5CD] rounded text-xs font-semibold transition-colors cursor-pointer"
+              onClick={handleCopyLocal}
+              className="py-2 px-3 bg-white hover:bg-zinc-50 text-zinc-800 border border-[#D8D5CD] rounded text-xs font-medium transition-colors cursor-pointer"
             >
-              {copied ? 'تم نسخ رابط المعاينة' : 'نسخ رابط المعاينة المحلية'}
+              {copiedLocal ? 'تم النسخ' : 'نسخ الرابط المحلي'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadStandaloneHtml}
+              className="py-2 px-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded text-xs font-semibold transition-colors cursor-pointer"
+            >
+              تحميل ملف HTML
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

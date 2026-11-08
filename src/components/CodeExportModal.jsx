@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
-import { DESIGN_THEMES, DEFAULT_SECTION_ORDER, DEFAULT_LAYOUTS, DEFAULT_TYPOGRAPHY } from '../engine/templates';
+import {
+  DESIGN_THEMES,
+  DEFAULT_SECTION_ORDER,
+  DEFAULT_LAYOUTS,
+  DEFAULT_TYPOGRAPHY,
+  ARABIC_FONTS,
+  DEFAULT_CUSTOM_COLORS,
+} from '../engine/templates';
 
 export function buildStandaloneHTML(pageData, activeThemeKey) {
   const theme = DESIGN_THEMES[activeThemeKey] || DESIGN_THEMES.editorial;
   const typo = { ...DEFAULT_TYPOGRAPHY, ...(pageData.typography || {}) };
+  const customColors = { ...DEFAULT_CUSTOM_COLORS, ...(pageData.customColors || {}) };
+  const fontObj = ARABIC_FONTS.find((f) => f.id === typo.fontFamily);
+  const activeFontCss = fontObj ? fontObj.css : theme.fontFamily;
   const currency = pageData.currency || 'ج.م';
   const waPhone = pageData.whatsappPhone || '201000000000';
   const sections = {
@@ -272,9 +282,9 @@ export function buildStandaloneHTML(pageData, activeThemeKey) {
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Readex+Pro:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    * { font-family: ${theme.fontFamily}; scroll-behavior: smooth; }
+    * { font-family: ${activeFontCss}; scroll-behavior: smooth; }
     main h1 { font-size: ${typo.heroSize}px !important; line-height: 1.32 !important; }
     main h2 { font-size: ${typo.sectionSize}px !important; line-height: 1.38 !important; }
     main h3 { font-size: ${typo.cardTitleSize}px !important; line-height: 1.42 !important; }
@@ -283,6 +293,10 @@ export function buildStandaloneHTML(pageData, activeThemeKey) {
       main h1 { font-size: ${Math.max(20, Math.round(typo.heroSize * 0.72))}px !important; }
       main h2 { font-size: ${Math.max(17, Math.round(typo.sectionSize * 0.84))}px !important; }
     }
+    ${customColors.enabled ? `
+    body, header { background-color: ${customColors.background} !important; color: ${customColors.text} !important; }
+    main h1, main h2, main h3, strong { color: ${customColors.text} !important; }
+    ` : ''}
   </style>
 </head>
 <body class="${theme.bgClass} min-h-screen flex flex-col">

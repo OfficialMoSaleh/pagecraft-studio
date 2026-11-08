@@ -6,6 +6,8 @@ import {
   DEFAULT_SECTION_ORDER,
   DEFAULT_LAYOUTS,
   SECTION_LAYOUT_OPTIONS,
+  ARABIC_FONTS,
+  BRAND_COLOR_PRESETS,
 } from './templates';
 import {
   sanitizeSlug,
@@ -13,6 +15,8 @@ import {
   buildNewProject,
   cloneProject,
   createInitialProjects,
+  encodeShareableToken,
+  decodeShareableToken,
 } from './projects';
 
 describe('Full-Scale Editorial Page Builder Engine', () => {
@@ -76,6 +80,41 @@ describe('Full-Scale Editorial Page Builder Engine', () => {
     const cloned = cloneProject(newProj, [newProj.slug]);
     expect(cloned.id).not.toBe(newProj.id);
     expect(cloned.name).toContain('نسخة');
+  });
+
+  it('encodes and decodes serverless shareable links with custom colors, fonts, and layouts', () => {
+    expect(ARABIC_FONTS.length).toBeGreaterThanOrEqual(6);
+    expect(BRAND_COLOR_PRESETS.length).toBeGreaterThanOrEqual(6);
+
+    const proj = buildNewProject({
+      name: 'دار العنبر',
+      prompt: 'براند عطور باسم "دار العنبر" بأسعار تبدأ من 520 ج.م',
+      theme: 'editorial',
+    });
+
+    // Customize layout, typography font, and custom brand colors
+    proj.pageData.layouts.hero = 'centered';
+    proj.pageData.typography.fontFamily = 'Amiri';
+    proj.pageData.typography.heroSize = 44;
+    proj.pageData.customColors = {
+      enabled: true,
+      primary: '#6B1D2F',
+      background: '#FAF6F6',
+      surface: '#FFFFFF',
+      text: '#241217',
+    };
+
+    const token = encodeShareableToken(proj);
+    expect(token.length).toBeGreaterThan(20);
+
+    const decoded = decodeShareableToken(token);
+    expect(decoded).not.toBeNull();
+    expect(decoded.pageData.brandName).toBe('دار العنبر');
+    expect(decoded.pageData.layouts.hero).toBe('centered');
+    expect(decoded.pageData.typography.fontFamily).toBe('Amiri');
+    expect(decoded.pageData.typography.heroSize).toBe(44);
+    expect(decoded.pageData.customColors.enabled).toBe(true);
+    expect(decoded.pageData.customColors.primary).toBe('#6B1D2F');
   });
 
   it('contains all calm design themes and curated image library', () => {

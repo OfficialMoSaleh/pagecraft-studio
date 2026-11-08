@@ -5,6 +5,8 @@ import {
   DEFAULT_LAYOUTS,
   SECTION_LAYOUT_OPTIONS,
   DEFAULT_TYPOGRAPHY,
+  ARABIC_FONTS,
+  DEFAULT_CUSTOM_COLORS,
 } from '../engine/templates';
 
 const SECTION_NAMES_AR = {
@@ -60,6 +62,14 @@ export default function CanvasFrame({
     ...DEFAULT_TYPOGRAPHY,
     ...(pageData.typography || {}),
   };
+
+  const customColors = {
+    ...DEFAULT_CUSTOM_COLORS,
+    ...(pageData.customColors || {}),
+  };
+
+  const selectedFontObj = ARABIC_FONTS.find((f) => f.id === typography.fontFamily);
+  const activeFontFamily = selectedFontObj ? selectedFontObj.css : theme.fontFamily;
 
   const isMobile = deviceView === 'mobile' && !isFullscreen;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1656,8 +1666,12 @@ export default function CanvasFrame({
         </div>
       )}
 
-      {/* Dynamic Typography & Mobile Responsiveness Scoped Styles */}
+      {/* Dynamic Typography, Custom Brand Colors & Mobile Responsiveness Scoped Styles */}
       <style>{`
+        .pagecraft-canvas,
+        .pagecraft-canvas * {
+          font-family: ${activeFontFamily} !important;
+        }
         .pagecraft-canvas h1 {
           font-size: ${heroFontPx}px !important;
           line-height: 1.32 !important;
@@ -1679,6 +1693,31 @@ export default function CanvasFrame({
         .pagecraft-canvas .pc-price-val {
           font-size: ${priceFontPx}px !important;
         }
+        ${customColors.enabled ? `
+        .pagecraft-canvas,
+        .pagecraft-canvas header {
+          background-color: ${customColors.background} !important;
+          color: ${customColors.text} !important;
+        }
+        .pagecraft-canvas h1,
+        .pagecraft-canvas h2,
+        .pagecraft-canvas h3,
+        .pagecraft-canvas strong,
+        .pagecraft-canvas .pc-price-val {
+          color: ${customColors.text} !important;
+        }
+        .pagecraft-canvas [class*="bg-white"],
+        .pagecraft-canvas [class*="bg-[#1C1C1A]"] {
+          background-color: ${customColors.surface} !important;
+        }
+        .pagecraft-canvas button[class*="bg-[#1A1917]"],
+        .pagecraft-canvas button[class*="bg-zinc-900"],
+        .pagecraft-canvas button[class*="bg-[#1B3B2B]"],
+        .pagecraft-canvas button[class*="bg-[#F2F0EC]"] {
+          background-color: ${customColors.primary} !important;
+          color: #ffffff !important;
+        }
+        ` : ''}
         ${isMobile ? `
         .pagecraft-mobile-mode section,
         .pagecraft-mobile-mode section > div {
@@ -1713,7 +1752,7 @@ export default function CanvasFrame({
 
       <div
         className={`pagecraft-canvas ${isMobile ? 'pagecraft-mobile-mode' : ''} min-h-screen ${theme.bgClass} flex flex-col transition-colors duration-300 relative`}
-        style={{ fontFamily: theme.fontFamily }}
+        style={{ fontFamily: activeFontFamily }}
       >
         {/* Top Announcement Bar */}
         {sections.announcement && pageData.announcement && (

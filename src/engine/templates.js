@@ -181,8 +181,35 @@ export const SECTION_LAYOUT_OPTIONS = {
   ],
 };
 
+export const ARABIC_FONTS = [
+  { id: 'Cairo', name: 'خط القاهرة (Cairo)', desc: 'هندسي متوازن ومعاصر', css: "'Cairo', sans-serif" },
+  { id: 'Tajawal', name: 'خط تجوال (Tajawal)', desc: 'ناعم وعصري للمتاجر', css: "'Tajawal', sans-serif" },
+  { id: 'IBM Plex Sans Arabic', name: 'آي بي إم بليكس (IBM Plex)', desc: 'تقني ومنظم للشركات', css: "'IBM Plex Sans Arabic', sans-serif" },
+  { id: 'Almarai', name: 'خط المراعي (Almarai)', desc: 'واضح ومقروء للعروض', css: "'Almarai', sans-serif" },
+  { id: 'Readex Pro', name: 'ريدكس برو (Readex Pro)', desc: 'حداثي وأنيق', css: "'Readex Pro', sans-serif" },
+  { id: 'Amiri', name: 'الخط الأميري (Amiri)', desc: 'أدبي وكلاسيكي فخم', css: "'Amiri', Georgia, serif" },
+];
+
+export const DEFAULT_CUSTOM_COLORS = {
+  enabled: false,
+  primary: '#1A1917',
+  background: '#F8F6F2',
+  surface: '#FFFFFF',
+  text: '#1A1917',
+};
+
+export const BRAND_COLOR_PRESETS = [
+  { id: 'burgundy', name: 'عنابي ملكي', primary: '#6B1D2F', background: '#FAF6F6', surface: '#FFFFFF', text: '#241217' },
+  { id: 'navy', name: 'كحلي رسمي', primary: '#1E3A5F', background: '#F5F7FA', surface: '#FFFFFF', text: '#111C2D' },
+  { id: 'olive', name: 'زيتوني طبيعي', primary: '#3B4D36', background: '#F6F7F4', surface: '#FFFFFF', text: '#192217' },
+  { id: 'terracotta', name: 'نحاسي دافئ', primary: '#8C4A27', background: '#FAF6F2', surface: '#FFFFFF', text: '#261810' },
+  { id: 'plum', name: 'بنفسجي داكن', primary: '#3E2356', background: '#F8F6FA', surface: '#FFFFFF', text: '#1C1126' },
+  { id: 'obsidian', name: 'أسود ذهبي', primary: '#C59B27', background: '#141413', surface: '#1E1E1C', text: '#F4F2ED' },
+];
+
 export const DEFAULT_TYPOGRAPHY = {
   scale: 'medium',
+  fontFamily: 'Cairo',
   heroSize: 34,
   sectionSize: 22,
   cardTitleSize: 15,
@@ -1061,6 +1088,7 @@ export function generatePageData(promptText = '', themeKey = 'editorial') {
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     layouts: nicheDefaultLayouts[niche] || { ...DEFAULT_LAYOUTS },
     typography: { ...DEFAULT_TYPOGRAPHY },
+    customColors: { ...DEFAULT_CUSTOM_COLORS },
   };
 }
 
