@@ -112,6 +112,7 @@ export const PRESET_PROMPTS = [
 
 export const DEFAULT_SECTIONS = {
   announcement: true,
+  hero: true,
   heroImage: true,
   stats: true,
   catalog: true,
@@ -121,6 +122,63 @@ export const DEFAULT_SECTIONS = {
   testimonial: true,
   faq: true,
   orderForm: true,
+};
+
+export const DEFAULT_SECTION_ORDER = [
+  'hero',
+  'stats',
+  'catalog',
+  'features',
+  'process',
+  'pricing',
+  'testimonial',
+  'faq',
+  'orderForm',
+];
+
+export const DEFAULT_LAYOUTS = {
+  hero: 'editorial',
+  stats: 'strip',
+  catalog: 'grid',
+  features: 'columns',
+  process: 'cards',
+  pricing: 'columns',
+  testimonial: 'grid',
+};
+
+export const SECTION_LAYOUT_OPTIONS = {
+  hero: [
+    { id: 'editorial', label: 'مجلة كلاسيكي (صورة بالأسفل)' },
+    { id: 'split', label: 'مقسوم يمين ويسار (Split)' },
+    { id: 'centered', label: 'مركزي متماثل (Centered)' },
+  ],
+  stats: [
+    { id: 'strip', label: 'شريط أفقي متصل' },
+    { id: 'cards', label: 'بطاقات مستقلة' },
+    { id: 'minimal', label: 'فواصل خطية بسيطة' },
+  ],
+  catalog: [
+    { id: 'grid', label: 'شبكة بطاقات (3 أعمدة)' },
+    { id: 'list', label: 'قائمة أفقية مفصلة (Menu)' },
+    { id: 'featured', label: 'عنصر رئيسي بارز + شبكة' },
+  ],
+  features: [
+    { id: 'columns', label: '٣ أعمدة مرقمة' },
+    { id: 'rows', label: 'صفوف أفقية تحريرية' },
+    { id: 'cards', label: 'بطاقات مؤطرة' },
+  ],
+  process: [
+    { id: 'cards', label: 'بطاقات أفقية' },
+    { id: 'timeline', label: 'مسار خطي متسلسل' },
+  ],
+  pricing: [
+    { id: 'columns', label: '٣ بطاقات متجاورة' },
+    { id: 'horizontal', label: 'صفوف مقارنة أفقية' },
+  ],
+  testimonial: [
+    { id: 'grid', label: 'شبكة آراء ثنائية' },
+    { id: 'editorialQuote', label: 'اقتباس مركزي كبير' },
+  ],
 };
 
 /**
@@ -955,7 +1013,22 @@ export function generatePageData(promptText = '', themeKey = 'editorial') {
     },
   };
 
-  return templates[niche];
+  const chosen = templates[niche];
+  const nicheDefaultLayouts = {
+    perfume: { ...DEFAULT_LAYOUTS, hero: 'editorial', catalog: 'grid', features: 'columns' },
+    coffee: { ...DEFAULT_LAYOUTS, hero: 'split', catalog: 'list', features: 'rows' },
+    fashion: { ...DEFAULT_LAYOUTS, hero: 'editorial', catalog: 'featured', features: 'columns' },
+    interior: { ...DEFAULT_LAYOUTS, hero: 'centered', catalog: 'grid', features: 'rows' },
+    studio: { ...DEFAULT_LAYOUTS, hero: 'split', catalog: 'grid', features: 'cards' },
+    course: { ...DEFAULT_LAYOUTS, hero: 'centered', catalog: 'list', features: 'cards' },
+    general: { ...DEFAULT_LAYOUTS },
+  };
+
+  return {
+    ...chosen,
+    sectionOrder: [...DEFAULT_SECTION_ORDER],
+    layouts: nicheDefaultLayouts[niche] || { ...DEFAULT_LAYOUTS },
+  };
 }
 
 /**

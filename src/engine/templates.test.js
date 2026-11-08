@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { generatePageData, DESIGN_THEMES, IMAGE_LIBRARY } from './templates';
+import {
+  generatePageData,
+  DESIGN_THEMES,
+  IMAGE_LIBRARY,
+  DEFAULT_SECTION_ORDER,
+  DEFAULT_LAYOUTS,
+  SECTION_LAYOUT_OPTIONS,
+} from './templates';
 
 describe('Full-Scale Editorial Page Builder Engine', () => {
   it('extracts custom brand name and price directly from user prompt', () => {
@@ -30,6 +37,17 @@ describe('Full-Scale Editorial Page Builder Engine', () => {
     expect(data.headline).toBe(customPrompt);
     expect(data.products.length).toBe(3);
     expect(data.faqs.length).toBeGreaterThan(0);
+  });
+
+  it('populates default sectionOrder and multi-layout configuration', () => {
+    const data = generatePageData('متجر ساعات كلاسيكية');
+    expect(data.sectionOrder).toEqual(DEFAULT_SECTION_ORDER);
+    expect(data.layouts).toBeDefined();
+    expect(data.layouts.hero).toBeDefined();
+    expect(data.layouts.catalog).toBeDefined();
+    expect(SECTION_LAYOUT_OPTIONS.hero.length).toBe(3);
+    expect(SECTION_LAYOUT_OPTIONS.catalog.length).toBe(3);
+    expect(DEFAULT_LAYOUTS.hero).toBe('editorial');
   });
 
   it('contains all calm design themes and curated image library', () => {

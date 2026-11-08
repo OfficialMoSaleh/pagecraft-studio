@@ -8,23 +8,25 @@ import {
   DESIGN_THEMES,
   PRESET_PROMPTS,
   DEFAULT_SECTIONS,
+  DEFAULT_SECTION_ORDER,
+  DEFAULT_LAYOUTS,
+  SECTION_LAYOUT_OPTIONS,
 } from './engine/templates';
 
 const SECTION_LABELS = {
-  announcement: 'شريط التنبيه العلوي',
-  heroImage: 'الصورة الرئيسية (Hero)',
+  hero: 'القسم الرئيسي (Hero)',
   stats: 'شريط الإحصائيات والأرقام',
-  catalog: 'كتالوج المنتجات والخدمات التفاعلي',
+  catalog: 'كتالوج المنتجات والخدمات',
   features: 'قسم معايير الجودة والمميزات',
   process: 'قسم خطوات الطلب والعمل',
-  pricing: 'جدول الباقات والأسعار الثلاثي',
+  pricing: 'جدول الباقات والأسعار',
   testimonial: 'قسم تجارب وآراء العملاء',
-  faq: 'قسم الأسئلة الشائعة التفاعلي',
+  faq: 'قسم الأسئلة الشائعة',
   orderForm: 'نموذج السلة وإتمام الطلب',
 };
 
 export default function App() {
-  const [sidebarTab, setSidebarTab] = useState('prompt'); // 'prompt' | 'content' | 'design'
+  const [sidebarTab, setSidebarTab] = useState('design'); // Open on 'design' or 'prompt'
   const [promptInput, setPromptInput] = useState(
     'دار عطور محلية باسم "أثر" تعتمد على الزيوت الطبيعية الخالصة وتعتيق الأخشاب العطرية يدوياً بأسعار تبدأ من 340 ج.م'
   );
@@ -38,6 +40,10 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
+  // Drag and Drop state for section reordering
+  const [draggedSection, setDraggedSection] = useState(null);
+  const [dragOverSection, setDragOverSection] = useState(null);
+
   // Image Picker Modal State
   const [imagePickerConfig, setImagePickerConfig] = useState({
     isOpen: false,
@@ -46,11 +52,19 @@ export default function App() {
     onSelect: null,
   });
 
-  // Main Page Data State (with localStorage persistence)
+  // Main Page Data State
   const [pageData, setPageData] = useState(() => {
     try {
-      const saved = localStorage.getItem('pagecraft_v3_data');
-      if (saved) return JSON.parse(saved);
+      const saved = localStorage.getItem('pagecraft_v4_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          sectionOrder: parsed.sectionOrder || [...DEFAULT_SECTION_ORDER],
+          layouts: { ...DEFAULT_LAYOUTS, ...(parsed.layouts || {}) },
+          sections: { ...DEFAULT_SECTIONS, ...(parsed.sections || {}) },
+        };
+      }
     } catch {
       // ignore
     }
@@ -64,9 +78,9 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('pagecraft_v3_data', JSON.stringify(pageData));
+      localStorage.setItem('pagecraft_v4_data', JSON.stringify(pageData));
     } catch {
-      // ignore storage quota errors if large uploaded base64 image
+      // ignore storage quota errors
     }
   }, [pageData]);
 
@@ -89,7 +103,7 @@ export default function App() {
         const aiData = await generateWithGeminiAI(finalPrompt, geminiKey.trim(), finalTheme);
         setPageData(aiData);
       } else {
-        await new Promise((r) => setTimeout(r, 250));
+        await new Promise((r) => setTimeout(r, 200));
         const nextData = generatePageData(finalPrompt, finalTheme);
         setPageData(nextData);
         if (nextData.theme) setActiveThemeKey(nextData.theme);
@@ -113,12 +127,85 @@ export default function App() {
     setPageData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Section Visibility Toggle
   const handleToggleSection = (secKey) => {
-    const currentSections = pageData.sections || { ...DEFAULT_SECTIONS };
+    const currentSections = { ...DEFAULT_SECTIONS, ...(pageData.sections || {}) };
     handleUpdateField('sections', {
       ...currentSections,
       [secKey]: !currentSections[secKey],
     });
+  };
+
+  // Section Layout Variant Change
+  const handleChangeSectionLayout = (secKey, layoutId) => {
+    const currentLayouts = { ...DEFAULT_LAYOUTS, ...(pageData.layouts || {}) };
+    handleUpdateField('layouts', {
+      ...currentLayouts,
+      [secKey]: layoutId,
+    });
+  };
+
+  // Section Reordering (Up / Down buttons)
+  const handleMoveSection = (secKey, direction) => {
+    const currentOrder = [...(pageData.sectionOrder || DEFAULT_SECTION_ORDER)];
+    const index = currentOrder.indexOf(secKey);
+    if (index === -1) return;
+
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentOrder.length) return;
+
+    const swapped = [...currentOrder];
+    const temp = swapped[index];
+    swapped[index] = swapped[targetIndex];
+    swapped[targetIndex] = temp;
+
+    setHistory((prev) => [...prev.slice(-9), pageData]);
+    handleUpdateField('sectionOrder', swapped);
+  };
+
+  // Drag and Drop Reordering
+  const handleDragStart = (secKey) => {
+    setDraggedSection(secKey);
+  };
+
+  const handleDragOver = (e, secKey) => {
+    e.preventDefault();
+    if (secKey !== draggedSection) {
+      setDragOverSection(secKey);
+    }
+  };
+
+  const handleDrop = (targetKey) => {
+    if (!draggedSection || draggedSection === targetKey) {
+      setDraggedSection(null);
+      setDragOverSection(null);
+      return;
+    }
+
+    const currentOrder = [...(pageData.sectionOrder || DEFAULT_SECTION_ORDER)];
+    const fromIdx = currentOrder.indexOf(draggedSection);
+    const toIdx = currentOrder.indexOf(targetKey);
+
+    if (fromIdx !== -1 && toIdx !== -1) {
+      const updated = [...currentOrder];
+      const [moved] = updated.splice(fromIdx, 1);
+      updated.splice(toIdx, 0, moved);
+      setHistory((prev) => [...prev.slice(-9), pageData]);
+      handleUpdateField('sectionOrder', updated);
+    }
+
+    setDraggedSection(null);
+    setDragOverSection(null);
+  };
+
+  const handleResetLayoutAndOrder = () => {
+    setHistory((prev) => [...prev.slice(-9), pageData]);
+    setPageData((prev) => ({
+      ...prev,
+      sectionOrder: [...DEFAULT_SECTION_ORDER],
+      layouts: { ...DEFAULT_LAYOUTS },
+      sections: { ...DEFAULT_SECTIONS },
+    }));
   };
 
   const handleUndo = () => {
@@ -137,7 +224,6 @@ export default function App() {
     });
   };
 
-  // Product helpers in sidebar
   const products = pageData.products || [];
   const updateProductItem = (idx, field, val) => {
     const copy = [...products];
@@ -170,6 +256,9 @@ export default function App() {
     );
   };
 
+  const currentSectionOrder = pageData.sectionOrder || DEFAULT_SECTION_ORDER;
+  const currentLayouts = { ...DEFAULT_LAYOUTS, ...(pageData.layouts || {}) };
+
   if (isFullscreen) {
     return (
       <div className="min-h-screen bg-zinc-100 relative">
@@ -182,6 +271,9 @@ export default function App() {
         <CanvasFrame
           pageData={pageData}
           onUpdateField={handleUpdateField}
+          onMoveSection={handleMoveSection}
+          onChangeSectionLayout={handleChangeSectionLayout}
+          onToggleSection={handleToggleSection}
           onOpenImagePicker={openImagePicker}
           activeThemeKey={activeThemeKey}
           deviceView="desktop"
@@ -194,12 +286,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#ECEAE4] text-zinc-900 flex flex-col lg:flex-row font-sans">
       {/* Right Sidebar: Comprehensive Multi-Tab Editor */}
-      <aside className="w-full lg:w-[380px] xl:w-[410px] bg-[#F7F6F2] border-b lg:border-b-0 lg:border-l border-[#DFDDD6] flex flex-col shrink-0 lg:h-screen lg:sticky lg:top-0">
+      <aside className="w-full lg:w-[390px] xl:w-[420px] bg-[#F7F6F2] border-b lg:border-b-0 lg:border-l border-[#DFDDD6] flex flex-col shrink-0 lg:h-screen lg:sticky lg:top-0">
         {/* Studio Header */}
         <div className="px-6 py-4 border-b border-[#E5E3DC] flex items-center justify-between">
           <div>
             <h1 className="text-base font-bold tracking-tight text-zinc-900">مِعمار الصفحات</h1>
-            <p className="text-[11px] text-zinc-500">محرر صفحات الهبوط والكتالوج التفاعلي</p>
+            <p className="text-[11px] text-zinc-500">محرر تخطيطات صفحات الهبوط والكتالوج</p>
           </div>
           <div className="flex items-center gap-3">
             {history.length > 0 && (
@@ -246,11 +338,11 @@ export default function App() {
                 : 'border-transparent text-zinc-500 hover:text-zinc-800'
             }`}
           >
-            ٣. المظهر والأقسام
+            ٣. التخطيط والأقسام
           </button>
         </div>
 
-        {/* Tab Contents (Scrollable) */}
+        {/* Tab Contents */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* TAB 1: PROMPT & GENERATION */}
           {sidebarTab === 'prompt' && (
@@ -308,7 +400,7 @@ export default function App() {
 
               {/* Presets */}
               <div className="pt-4 border-t border-[#E5E3DC] space-y-2.5">
-                <span className="text-xs font-bold text-zinc-800 block">نماذج قطاعات كاملة للتجربة:</span>
+                <span className="text-xs font-bold text-zinc-800 block">نماذج قطاعات كاملة بتخطيطات متنوعة:</span>
                 <div className="space-y-1.5">
                   {PRESET_PROMPTS.map((preset, idx) => (
                     <button
@@ -329,7 +421,6 @@ export default function App() {
           {/* TAB 2: DEEP CONTENT, IMAGES, PRODUCTS & PRICING EDITOR */}
           {sidebarTab === 'content' && (
             <div className="space-y-6">
-              {/* Hero & Main Texts */}
               <div className="space-y-3">
                 <h3 className="text-xs font-bold text-zinc-900 border-b border-[#E5E3DC] pb-2">
                   البيانات الأساسية والصورة الرئيسية
@@ -508,7 +599,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: THEME, SECTIONS VISIBILITY & CHECKOUT SETTINGS */}
+          {/* TAB 3: SECTION REORDERING, LAYOUT VARIANTS & THEME */}
           {sidebarTab === 'design' && (
             <div className="space-y-6">
               {/* Color Palettes */}
@@ -536,27 +627,135 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Section Visibility Toggles */}
-              <div className="space-y-2.5 pt-4 border-t border-[#E5E3DC]">
-                <label className="text-xs font-bold text-zinc-800 block">
-                  إظهار أو إخفاء أقسام الموقع
-                </label>
-                <div className="space-y-1.5 bg-white p-3 rounded border border-[#DFDDD6]">
-                  {Object.keys(SECTION_LABELS).map((secKey) => {
+              {/* Interactive Section Order & Layout Variant Builder */}
+              <div className="space-y-3 pt-4 border-t border-[#E5E3DC]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-zinc-900 block">
+                      ترتيب الأقسام وتخطيط كل قسم
+                    </label>
+                    <p className="text-[11px] text-zinc-500">
+                      اسحب القسم لإعادة ترتيبه أو استخدم الأسهم، واختر التخطيط المناسب
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetLayoutAndOrder}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-900 underline shrink-0 cursor-pointer"
+                  >
+                    استعادة الافتراضي
+                  </button>
+                </div>
+
+                {/* Top Announcement Toggle */}
+                <div className="p-2.5 bg-white rounded border border-[#DFDDD6] flex items-center justify-between text-xs">
+                  <span className="font-medium text-zinc-700">شريط التنبيه العلوي (ثابت بالأعلى)</span>
+                  <input
+                    type="checkbox"
+                    checked={pageData.sections?.announcement ?? true}
+                    onChange={() => handleToggleSection('announcement')}
+                    className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                  />
+                </div>
+
+                {/* Reorderable Sections List */}
+                <div className="space-y-2">
+                  {currentSectionOrder.map((secKey, idx) => {
                     const isVisible = pageData.sections?.[secKey] ?? true;
+                    const layoutOptions = SECTION_LAYOUT_OPTIONS[secKey];
+                    const activeLayout = currentLayouts[secKey];
+                    const isDragging = draggedSection === secKey;
+                    const isDragOver = dragOverSection === secKey;
+
                     return (
-                      <label
+                      <div
                         key={secKey}
-                        className="flex items-center justify-between py-1 text-xs text-zinc-700 cursor-pointer"
+                        draggable
+                        onDragStart={() => handleDragStart(secKey)}
+                        onDragOver={(e) => handleDragOver(e, secKey)}
+                        onDrop={() => handleDrop(secKey)}
+                        onDragEnd={() => {
+                          setDraggedSection(null);
+                          setDragOverSection(null);
+                        }}
+                        className={`p-3 rounded border transition-all ${
+                          isDragging
+                            ? 'opacity-50 border-zinc-900 bg-zinc-100'
+                            : isDragOver
+                            ? 'border-2 border-zinc-900 bg-zinc-50'
+                            : isVisible
+                            ? 'bg-white border-[#DFDDD6]'
+                            : 'bg-zinc-100/70 border-zinc-200 opacity-60'
+                        }`}
                       >
-                        <span>{SECTION_LABELS[secKey]}</span>
-                        <input
-                          type="checkbox"
-                          checked={isVisible}
-                          onChange={() => handleToggleSection(secKey)}
-                          className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
-                        />
-                      </label>
+                        {/* Top row: Drag Handle + Name + Up/Down + Visibility */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="text-zinc-400 cursor-grab active:cursor-grabbing select-none font-mono text-xs"
+                              title="اسحب لتغيير الترتيب"
+                            >
+                              ::
+                            </span>
+                            <span className="text-xs font-bold text-zinc-800 truncate">
+                              {idx + 1}. {SECTION_LABELS[secKey] || secKey}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveSection(secKey, 'up')}
+                              className="w-6 h-6 rounded bg-zinc-100 hover:bg-zinc-200 disabled:opacity-30 text-zinc-800 text-xs flex items-center justify-center cursor-pointer"
+                              title="تحريك لأعلى"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === currentSectionOrder.length - 1}
+                              onClick={() => handleMoveSection(secKey, 'down')}
+                              className="w-6 h-6 rounded bg-zinc-100 hover:bg-zinc-200 disabled:opacity-30 text-zinc-800 text-xs flex items-center justify-center cursor-pointer"
+                              title="تحريك لأسفل"
+                            >
+                              ↓
+                            </button>
+                            <input
+                              type="checkbox"
+                              checked={isVisible}
+                              onChange={() => handleToggleSection(secKey)}
+                              title="إظهار أو إخفاء القسم"
+                              className="accent-zinc-900 w-3.5 h-3.5 mr-1.5 cursor-pointer"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Bottom row: Layout Variants Selector (if section has variants and is visible) */}
+                        {isVisible && layoutOptions && (
+                          <div className="mt-2.5 pt-2 border-t border-zinc-100">
+                            <div className="flex flex-wrap gap-1">
+                              {layoutOptions.map((opt) => {
+                                const isChosen = activeLayout === opt.id;
+                                return (
+                                  <button
+                                    key={opt.id}
+                                    type="button"
+                                    onClick={() => handleChangeSectionLayout(secKey, opt.id)}
+                                    className={`text-[10px] px-2 py-1 rounded transition-colors cursor-pointer ${
+                                      isChosen
+                                        ? 'bg-zinc-900 text-white font-semibold'
+                                        : 'bg-[#F1EFEA] text-zinc-700 hover:bg-[#E4E1D8]'
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -648,7 +847,7 @@ export default function App() {
 
           <div className="flex items-center gap-4">
             <span className="hidden md:inline text-[11px] text-zinc-400">
-              تلميح: انقر على أي نص أو سعر أو صورة داخل الموقع لتعديلها فوراً
+              مرر الماوس فوق أي قسم في المعاينة لتغيير تخطيطه أو ترتيبه مباشرة
             </span>
             <button
               onClick={() => setIsFullscreen(true)}
@@ -664,6 +863,9 @@ export default function App() {
           <CanvasFrame
             pageData={pageData}
             onUpdateField={handleUpdateField}
+            onMoveSection={handleMoveSection}
+            onChangeSectionLayout={handleChangeSectionLayout}
+            onToggleSection={handleToggleSection}
             onOpenImagePicker={openImagePicker}
             activeThemeKey={activeThemeKey}
             deviceView={deviceView}

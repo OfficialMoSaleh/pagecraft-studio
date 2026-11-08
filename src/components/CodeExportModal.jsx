@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DESIGN_THEMES } from '../engine/templates';
+import { DESIGN_THEMES, DEFAULT_SECTION_ORDER, DEFAULT_LAYOUTS } from '../engine/templates';
 
 export default function CodeExportModal({
   isOpen,
@@ -13,7 +13,262 @@ export default function CodeExportModal({
   const theme = DESIGN_THEMES[activeThemeKey] || DESIGN_THEMES.editorial;
   const currency = pageData.currency || 'ج.م';
   const waPhone = pageData.whatsappPhone || '201000000000';
-  const sections = pageData.sections || {};
+  const sections = {
+    announcement: true,
+    hero: true,
+    heroImage: true,
+    stats: true,
+    catalog: true,
+    features: true,
+    process: true,
+    pricing: true,
+    testimonial: true,
+    faq: true,
+    orderForm: true,
+    ...(pageData.sections || {}),
+  };
+
+  const sectionOrder =
+    Array.isArray(pageData.sectionOrder) && pageData.sectionOrder.length > 0
+      ? pageData.sectionOrder
+      : DEFAULT_SECTION_ORDER;
+
+  const layouts = { ...DEFAULT_LAYOUTS, ...(pageData.layouts || {}) };
+
+  const exportBuilders = {
+    hero: () => {
+      if (sections.hero === false) return '';
+      if (layouts.hero === 'split') {
+        return `
+    <section class="px-6 md:px-12 py-14 border-b ${theme.borderClass} grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+      <div class="md:col-span-7 space-y-5">
+        <span class="text-xs pb-1 inline-block font-medium ${theme.tagClass}">${pageData.category}</span>
+        <h1 class="text-2xl md:text-4xl font-bold leading-snug ${theme.textMain}">${pageData.headline}</h1>
+        <p class="text-sm md:text-base leading-relaxed ${theme.textMuted}">${pageData.subheadline}</p>
+        <div class="flex flex-wrap items-center gap-3 pt-2">
+          <a href="#catalog" class="px-6 py-3 rounded text-xs md:text-sm font-semibold ${theme.accentBtn}">${pageData.primaryCta}</a>
+          <a href="#pricing" class="px-5 py-3 rounded text-xs md:text-sm font-medium ${theme.secondaryBtn}">${pageData.secondaryCta}</a>
+        </div>
+      </div>
+      ${sections.heroImage && pageData.heroImage ? `
+      <div class="md:col-span-5">
+        <img src="${pageData.heroImage}" alt="${pageData.brandName}" class="w-full h-72 md:h-96 object-cover rounded border ${theme.borderClass}">
+      </div>` : ''}
+    </section>`;
+      }
+      if (layouts.hero === 'centered') {
+        return `
+    <section class="px-6 md:px-12 pt-14 pb-12 border-b ${theme.borderClass} text-center max-w-4xl mx-auto">
+      <span class="text-xs px-3 py-1 rounded inline-block font-medium mb-4 ${theme.badgeBg}">${pageData.category}</span>
+      <h1 class="text-2xl md:text-5xl font-bold leading-snug mb-5 ${theme.textMain}">${pageData.headline}</h1>
+      <p class="text-sm md:text-base leading-relaxed mb-8 max-w-2xl mx-auto ${theme.textMuted}">${pageData.subheadline}</p>
+      <div class="flex flex-wrap items-center justify-center gap-3 mb-10">
+        <a href="#catalog" class="px-6 py-3 rounded text-xs md:text-sm font-semibold ${theme.accentBtn}">${pageData.primaryCta}</a>
+        <a href="#pricing" class="px-5 py-3 rounded text-xs md:text-sm font-medium ${theme.secondaryBtn}">${pageData.secondaryCta}</a>
+      </div>
+      ${sections.heroImage && pageData.heroImage ? `
+      <img src="${pageData.heroImage}" alt="${pageData.brandName}" class="w-full h-64 md:h-96 object-cover rounded-lg border ${theme.borderClass}">` : ''}
+    </section>`;
+      }
+      return `
+    <section class="border-b ${theme.borderClass}">
+      <div class="px-6 md:px-12 pt-12 pb-10 max-w-3xl">
+        <div class="mb-4"><span class="text-xs pb-1 inline-block font-medium ${theme.tagClass}">${pageData.category}</span></div>
+        <h1 class="text-2xl md:text-4xl font-bold leading-snug mb-5 ${theme.textMain}">${pageData.headline}</h1>
+        <p class="text-sm md:text-base leading-relaxed mb-8 max-w-2xl ${theme.textMuted}">${pageData.subheadline}</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <a href="#catalog" class="px-6 py-3 rounded text-xs md:text-sm font-semibold ${theme.accentBtn}">${pageData.primaryCta}</a>
+          <a href="#pricing" class="px-5 py-3 rounded text-xs md:text-sm font-medium ${theme.secondaryBtn}">${pageData.secondaryCta}</a>
+        </div>
+      </div>
+      ${sections.heroImage && pageData.heroImage ? `
+      <div class="px-6 md:px-12 pb-12">
+        <img src="${pageData.heroImage}" alt="${pageData.brandName}" class="w-full h-64 md:h-[420px] object-cover rounded border ${theme.borderClass}">
+      </div>` : ''}
+    </section>`;
+    },
+
+    stats: () => {
+      if (!sections.stats || !pageData.stats) return '';
+      return `
+    <section class="px-6 md:px-12 py-8 border-b ${theme.borderClass} ${layouts.stats === 'strip' ? theme.surfaceClass : ''}">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+        ${pageData.stats.map(st => `
+        <div class="${layouts.stats === 'cards' ? `p-5 rounded ${theme.cardClass} text-center` : ''}">
+          <div class="text-xl md:text-2xl font-bold ${theme.textMain}">${st.value}</div>
+          <div class="text-xs ${theme.textMuted}">${st.label}</div>
+        </div>`).join('')}
+      </div>
+    </section>`;
+    },
+
+    catalog: () => {
+      if (!sections.catalog || !pageData.products) return '';
+      if (layouts.catalog === 'list') {
+        return `
+    <section id="catalog" class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
+      <h2 class="text-xl md:text-2xl font-bold ${theme.textMain} mb-2">${pageData.catalogTitle || 'المعروضات'}</h2>
+      <p class="text-xs md:text-sm ${theme.textMuted} mb-8">${pageData.catalogSubtitle || ''}</p>
+      <div class="space-y-4">
+        ${pageData.products.map(p => `
+        <div class="p-4 md:p-5 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 ${theme.cardClass}">
+          <div class="flex items-center gap-4">
+            <img src="${p.image}" alt="${p.name}" class="w-20 h-20 rounded object-cover shrink-0">
+            <div>
+              <h3 class="text-sm font-bold ${theme.textMain} mb-1">${p.name}</h3>
+              <p class="text-xs ${theme.textMuted}">${p.desc}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 shrink-0">
+            <span class="text-base font-bold ${theme.textMain}">${p.price} ${currency}</span>
+            <a href="#order" class="text-xs px-4 py-2 rounded font-semibold ${theme.accentBtn}">اطلب الآن</a>
+          </div>
+        </div>`).join('')}
+      </div>
+    </section>`;
+      }
+      return `
+    <section id="catalog" class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
+      <h2 class="text-xl md:text-2xl font-bold ${theme.textMain} mb-2">${pageData.catalogTitle || 'المعروضات'}</h2>
+      <p class="text-xs md:text-sm ${theme.textMuted} mb-8">${pageData.catalogSubtitle || ''}</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        ${pageData.products.map(p => `
+        <div class="rounded overflow-hidden flex flex-col justify-between ${theme.cardClass}">
+          <div>
+            <div class="h-52 overflow-hidden bg-zinc-100">
+              <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover">
+            </div>
+            <div class="p-5">
+              <h3 class="text-sm font-bold ${theme.textMain} mb-2">${p.name}</h3>
+              <p class="text-xs leading-relaxed ${theme.textMuted}">${p.desc}</p>
+            </div>
+          </div>
+          <div class="px-5 py-4 border-t ${theme.borderClass} flex items-center justify-between">
+            <span class="text-base font-bold ${theme.textMain}">${p.price} ${currency}</span>
+            <a href="#order" class="text-xs px-4 py-2 rounded font-semibold ${theme.accentBtn}">اطلب الآن</a>
+          </div>
+        </div>`).join('')}
+      </div>
+    </section>`;
+    },
+
+    features: () => {
+      if (!sections.features || !pageData.features) return '';
+      if (layouts.features === 'rows') {
+        return `
+    <section class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
+      <h2 class="text-lg md:text-xl font-bold ${theme.textMain} mb-6">معايير الجودة والعمل</h2>
+      <div class="divide-y ${theme.borderClass} border-y ${theme.borderClass}">
+        ${pageData.features.map((f, i) => `
+        <div class="py-5 grid grid-cols-1 md:grid-cols-12 gap-4 items-baseline">
+          <div class="md:col-span-4 flex items-baseline gap-3">
+            <span class="text-xs font-mono ${theme.textMuted}">${f.num || `0${i + 1}`}</span>
+            <h3 class="text-sm font-bold ${theme.textMain}">${f.title}</h3>
+          </div>
+          <p class="md:col-span-8 text-xs md:text-sm leading-relaxed ${theme.textMuted}">${f.desc}</p>
+        </div>`).join('')}
+      </div>
+    </section>`;
+      }
+      return `
+    <section class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
+      <h2 class="text-lg md:text-xl font-bold ${theme.textMain} mb-8">معايير الجودة والعمل</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        ${pageData.features.map((f, i) => `
+        <div class="${layouts.features === 'cards' ? `p-6 rounded ${theme.cardClass}` : ''} space-y-2">
+          <span class="text-xs font-mono block ${theme.textMuted}">${f.num || `0${i + 1}`}</span>
+          <h3 class="text-sm font-bold ${theme.textMain}">${f.title}</h3>
+          <p class="text-xs leading-relaxed ${theme.textMuted}">${f.desc}</p>
+        </div>`).join('')}
+      </div>
+    </section>`;
+    },
+
+    process: () => {
+      if (!sections.process || !pageData.processSteps) return '';
+      return `
+    <section class="px-6 md:px-12 py-14 border-b ${theme.borderClass} ${theme.surfaceClass}">
+      <h2 class="text-lg md:text-xl font-bold ${theme.textMain} mb-8">خطوات الطلب والاستلام</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        ${pageData.processSteps.map((st, i) => `
+        <div class="p-5 rounded ${theme.cardClass} space-y-2">
+          <span class="text-xs font-mono px-2 py-0.5 rounded inline-block ${theme.badgeBg}">خطوة ${st.step || `0${i + 1}`}</span>
+          <h3 class="text-sm font-bold ${theme.textMain}">${st.title}</h3>
+          <p class="text-xs leading-relaxed ${theme.textMuted}">${st.desc}</p>
+        </div>`).join('')}
+      </div>
+    </section>`;
+    },
+
+    pricing: () => {
+      if (!sections.pricing || !pageData.pricingTiers) return '';
+      return `
+    <section id="pricing" class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
+      <h2 class="text-xl md:text-2xl font-bold ${theme.textMain} mb-8">الباقات والأسعار</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        ${pageData.pricingTiers.map(t => `
+        <div class="p-6 rounded flex flex-col justify-between ${theme.cardClass}">
+          <div>
+            <h3 class="text-sm font-bold ${theme.textMain} mb-1">${t.name}</h3>
+            <p class="text-xs ${theme.textMuted} mb-4">${t.subtitle}</p>
+            <div class="text-2xl font-bold ${theme.textMain} mb-4 pb-4 border-b ${theme.borderClass}">${t.price}</div>
+            <ul class="space-y-2 mb-6 text-xs ${theme.textMuted}">
+              ${(t.features || []).map(f => `<li>— ${f}</li>`).join('')}
+            </ul>
+          </div>
+          <a href="#order" class="w-full py-2.5 rounded text-xs font-semibold text-center ${theme.accentBtn}">اختيار الباقة</a>
+        </div>`).join('')}
+      </div>
+    </section>`;
+    },
+
+    testimonial: () => {
+      if (!sections.testimonial || !pageData.testimonials || pageData.testimonials.length === 0) return '';
+      return `
+    <section class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
+      <h2 class="text-lg md:text-xl font-bold ${theme.textMain} mb-6">تجارب وآراء العملاء</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        ${pageData.testimonials.map(item => `
+        <blockquote class="p-6 rounded ${theme.cardClass} space-y-3">
+          <p class="text-xs md:text-sm leading-relaxed ${theme.textMain}">«${item.quote}»</p>
+          <footer class="text-xs ${theme.textMuted}"><strong>${item.author}</strong>${item.role ? ` — ${item.role}` : ''}</footer>
+        </blockquote>`).join('')}
+      </div>
+    </section>`;
+    },
+
+    faq: () => {
+      if (!sections.faq || !pageData.faqs) return '';
+      return `
+    <section class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
+      <h2 class="text-lg md:text-xl font-bold ${theme.textMain} mb-6">أسئلة وإجابات تفصيلية</h2>
+      <div class="divide-y ${theme.borderClass} border-y ${theme.borderClass}">
+        ${pageData.faqs.map(faq => `
+        <div class="py-4">
+          <h3 class="text-sm font-bold ${theme.textMain}">${faq.q}</h3>
+          <p class="mt-2 text-xs leading-relaxed ${theme.textMuted}">${faq.a}</p>
+        </div>`).join('')}
+      </div>
+    </section>`;
+    },
+
+    orderForm: () => {
+      if (!sections.orderForm) return '';
+      return `
+    <section id="order" class="px-6 md:px-12 py-14 ${theme.surfaceClass}">
+      <div class="max-w-xl mx-auto p-6 md:p-8 rounded ${theme.cardClass} space-y-4">
+        <h2 class="text-lg font-bold ${theme.textMain}">تأكيد الطلب عبر واتساب</h2>
+        <input id="custName" type="text" placeholder="الاسم الكامل" class="w-full px-3 py-2 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain}">
+        <input id="custNotes" type="text" placeholder="المنتج المطلوب والعنوان" class="w-full px-3 py-2 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain}">
+        <button onclick="sendWhatsApp()" class="w-full py-3 rounded text-xs font-bold ${theme.accentBtn} cursor-pointer">إرسال الطلب عبر واتساب</button>
+      </div>
+    </section>`;
+    },
+  };
+
+  const orderedSectionsHtml = sectionOrder
+    .map((secKey) => (exportBuilders[secKey] ? exportBuilders[secKey]() : ''))
+    .join('\n');
 
   const standaloneHtml = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -42,107 +297,7 @@ export default function CodeExportModal({
   </header>
 
   <main class="max-w-6xl mx-auto w-full flex-1">
-    <section class="px-6 md:px-12 pt-12 pb-10 max-w-3xl">
-      <div class="mb-4">
-        <span class="text-xs pb-1 inline-block font-medium ${theme.tagClass}">${pageData.category}</span>
-      </div>
-      <h1 class="text-2xl md:text-4xl font-bold leading-snug mb-5 ${theme.textMain}">
-        ${pageData.headline}
-      </h1>
-      <p class="text-sm md:text-base leading-relaxed mb-8 max-w-2xl ${theme.textMuted}">
-        ${pageData.subheadline}
-      </p>
-      <div class="flex flex-wrap items-center gap-3">
-        <a href="#catalog" class="px-6 py-3 rounded text-xs md:text-sm font-semibold ${theme.accentBtn}">
-          ${pageData.primaryCta}
-        </a>
-        <a href="#pricing" class="px-5 py-3 rounded text-xs md:text-sm font-medium ${theme.secondaryBtn}">
-          ${pageData.secondaryCta}
-        </a>
-      </div>
-    </section>
-
-    ${sections.heroImage && pageData.heroImage ? `
-    <section class="px-6 md:px-12 pb-12">
-      <div class="overflow-hidden rounded border ${theme.borderClass}">
-        <img src="${pageData.heroImage}" alt="${pageData.brandName}" class="w-full h-64 md:h-[420px] object-cover">
-      </div>
-    </section>` : ''}
-
-    ${sections.stats && pageData.stats ? `
-    <section class="px-6 md:px-12 py-8 border-y ${theme.borderClass} ${theme.surfaceClass}">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-        ${pageData.stats.map(st => `
-        <div>
-          <div class="text-xl md:text-2xl font-bold ${theme.textMain}">${st.value}</div>
-          <div class="text-xs ${theme.textMuted}">${st.label}</div>
-        </div>`).join('')}
-      </div>
-    </section>` : ''}
-
-    ${sections.catalog && pageData.products ? `
-    <section id="catalog" class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
-      <h2 class="text-xl md:text-2xl font-bold ${theme.textMain} mb-2">${pageData.catalogTitle || 'المعروضات'}</h2>
-      <p class="text-xs md:text-sm ${theme.textMuted} mb-8">${pageData.catalogSubtitle || ''}</p>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        ${pageData.products.map(p => `
-        <div class="rounded overflow-hidden flex flex-col justify-between ${theme.cardClass}">
-          <div>
-            <div class="h-52 overflow-hidden bg-zinc-100">
-              <img src="${p.image}" alt="${p.name}" class="w-full h-full object-cover">
-            </div>
-            <div class="p-5">
-              <h3 class="text-sm font-bold ${theme.textMain} mb-2">${p.name}</h3>
-              <p class="text-xs leading-relaxed ${theme.textMuted}">${p.desc}</p>
-            </div>
-          </div>
-          <div class="px-5 py-4 border-t ${theme.borderClass} flex items-center justify-between">
-            <span class="text-base font-bold ${theme.textMain}">${p.price} ${currency}</span>
-            <a href="#order" class="text-xs px-4 py-2 rounded font-semibold ${theme.accentBtn}">اطلب الآن</a>
-          </div>
-        </div>`).join('')}
-      </div>
-    </section>` : ''}
-
-    ${sections.features && pageData.features ? `
-    <section class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        ${pageData.features.map((f, i) => `
-        <div class="space-y-2">
-          <span class="text-xs font-mono block ${theme.textMuted}">${f.num || `0${i + 1}`}</span>
-          <h3 class="text-sm font-bold ${theme.textMain}">${f.title}</h3>
-          <p class="text-xs leading-relaxed ${theme.textMuted}">${f.desc}</p>
-        </div>`).join('')}
-      </div>
-    </section>` : ''}
-
-    ${sections.pricing && pageData.pricingTiers ? `
-    <section id="pricing" class="px-6 md:px-12 py-14 border-b ${theme.borderClass}">
-      <h2 class="text-xl md:text-2xl font-bold ${theme.textMain} mb-8">الباقات والأسعار</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        ${pageData.pricingTiers.map(t => `
-        <div class="p-6 rounded flex flex-col justify-between ${theme.cardClass}">
-          <div>
-            <h3 class="text-sm font-bold ${theme.textMain} mb-1">${t.name}</h3>
-            <p class="text-xs ${theme.textMuted} mb-4">${t.subtitle}</p>
-            <div class="text-2xl font-bold ${theme.textMain} mb-4 pb-4 border-b ${theme.borderClass}">${t.price}</div>
-            <ul class="space-y-2 mb-6 text-xs ${theme.textMuted}">
-              ${(t.features || []).map(f => `<li>— ${f}</li>`).join('')}
-            </ul>
-          </div>
-          <a href="#order" class="w-full py-2.5 rounded text-xs font-semibold text-center ${theme.accentBtn}">اختيار الباقة</a>
-        </div>`).join('')}
-      </div>
-    </section>` : ''}
-
-    <section id="order" class="px-6 md:px-12 py-14 ${theme.surfaceClass}">
-      <div class="max-w-xl mx-auto p-6 md:p-8 rounded ${theme.cardClass} space-y-4">
-        <h2 class="text-lg font-bold ${theme.textMain}">تأكيد الطلب عبر واتساب</h2>
-        <input id="custName" type="text" placeholder="الاسم الكامل" class="w-full px-3 py-2 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain}">
-        <input id="custNotes" type="text" placeholder="المنتج المطلوب والعنوان" class="w-full px-3 py-2 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain}">
-        <button onclick="sendWhatsApp()" class="w-full py-3 rounded text-xs font-bold ${theme.accentBtn} cursor-pointer">إرسال الطلب عبر واتساب</button>
-      </div>
-    </section>
+${orderedSectionsHtml}
   </main>
 
   <footer class="border-t ${theme.borderClass} px-6 md:px-12 py-6 max-w-6xl mx-auto w-full text-xs ${theme.textMuted}">
@@ -191,7 +346,7 @@ export default function CodeExportModal({
         </div>
 
         <p className="text-xs text-zinc-500 mb-3">
-          يحتوي هذا الملف على جميع الأقسام والمنتجات والأسعار والتعديلات التي قمت بها، وهو جاهز للرفع المباشر.
+          يعكس هذا الكود الترتيب الحالي للأقسام والتخطيط المختار لكل قسم وكافة التعديلات النصية.
         </p>
 
         <div className="flex-1 min-h-0 bg-zinc-950 text-zinc-200 rounded p-4 overflow-auto font-mono text-[11px] leading-relaxed text-left dir-ltr mb-4">
