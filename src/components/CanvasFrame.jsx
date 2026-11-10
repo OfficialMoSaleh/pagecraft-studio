@@ -99,6 +99,7 @@ export default function CanvasFrame({
   ]);
   const [selectedGovId, setSelectedGovId] = useState(shippingRates[0]?.id || 'cairo_giza');
   const [includeOrderBump, setIncludeOrderBump] = useState(false);
+  const [showPromoInput, setShowPromoInput] = useState(false);
   const [promoInput, setPromoInput] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoError, setPromoError] = useState('');
@@ -503,8 +504,8 @@ export default function CanvasFrame({
             )}
           </div>
         ) : heroLayout === 'centered' ? (
-          <div className="px-6 md:px-12 pt-14 pb-12 text-center max-w-4xl mx-auto">
-            <div className="mb-4">
+          <div className="px-6 md:px-12 pt-10 pb-10 text-center max-w-4xl mx-auto">
+            <div className="mb-3 flex items-center justify-center gap-2 flex-wrap">
               <span
                 contentEditable={!isFullscreen}
                 suppressContentEditableWarning
@@ -513,12 +514,17 @@ export default function CanvasFrame({
               >
                 {pageData.category}
               </span>
+              {pageData.price && (
+                <span className={`text-xs px-2.5 py-1 rounded border ${theme.borderClass} ${theme.textMain} font-semibold`}>
+                  الأسعار تبدأ من {pageData.price}
+                </span>
+              )}
             </div>
             <h1
               contentEditable={!isFullscreen}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField('headline', e.currentTarget.innerText)}
-              className={`text-2xl md:text-4xl lg:text-5xl font-bold leading-[1.3] mb-5 max-w-3xl mx-auto ${theme.textMain} focus:outline-none cursor-text`}
+              className={`text-2xl md:text-4xl font-bold leading-[1.3] mb-4 max-w-3xl mx-auto ${theme.textMain} focus:outline-none cursor-text`}
             >
               {pageData.headline}
             </h1>
@@ -526,14 +532,14 @@ export default function CanvasFrame({
               contentEditable={!isFullscreen}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField('subheadline', e.currentTarget.innerText)}
-              className={`text-sm md:text-base leading-relaxed mb-8 max-w-2xl mx-auto ${theme.textMuted} focus:outline-none cursor-text`}
+              className={`text-sm md:text-base leading-relaxed mb-6 max-w-2xl mx-auto ${theme.textMuted} focus:outline-none cursor-text`}
             >
               {pageData.subheadline}
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
               <button
-                onClick={() => scrollToSection(sections.catalog ? 'catalog-section' : 'order-section')}
-                className={`px-6 py-3 rounded text-xs md:text-sm font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
+                onClick={() => scrollToSection('order-section')}
+                className={`px-6 py-2.5 rounded text-xs md:text-sm font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
               >
                 <span
                   contentEditable={!isFullscreen}
@@ -546,8 +552,8 @@ export default function CanvasFrame({
                 </span>
               </button>
               <button
-                onClick={() => scrollToSection('pricing-section')}
-                className={`px-5 py-3 rounded text-xs md:text-sm font-medium transition-colors cursor-pointer ${theme.secondaryBtn}`}
+                onClick={() => scrollToSection(sections.catalog ? 'catalog-section' : 'pricing-section')}
+                className={`px-5 py-2.5 rounded text-xs md:text-sm font-medium transition-colors cursor-pointer ${theme.secondaryBtn}`}
               >
                 <span
                   contentEditable={!isFullscreen}
@@ -566,7 +572,7 @@ export default function CanvasFrame({
                 <img
                   src={pageData.heroImage}
                   alt={pageData.brandName || ''}
-                  className="w-full h-64 md:h-[400px] object-cover"
+                  className="w-full h-56 md:h-[310px] object-cover"
                 />
                 {!isFullscreen && (
                   <button
@@ -587,39 +593,47 @@ export default function CanvasFrame({
             )}
           </div>
         ) : (
-          /* Default: 'editorial' */
-          <div>
-            <div className="px-6 md:px-12 pt-12 pb-10 max-w-3xl">
-              <div className="mb-4">
+          /* Default: 'editorial' — Balanced 2-Column Above-the-Fold Layout */
+          <div className="px-6 md:px-12 py-10 md:py-12 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            <div className={sections.heroImage && pageData.heroImage ? 'md:col-span-7 space-y-4' : 'md:col-span-12 max-w-3xl space-y-4'}>
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <span
                   contentEditable={!isFullscreen}
                   suppressContentEditableWarning
                   onBlur={(e) => onUpdateField('category', e.currentTarget.innerText)}
-                  className={`text-xs pb-1 inline-block font-medium ${theme.tagClass} focus:outline-none cursor-text`}
+                  className={`text-xs px-2.5 py-1 rounded font-medium ${theme.badgeBg} focus:outline-none cursor-text`}
                 >
                   {pageData.category}
                 </span>
+                {pageData.price && (
+                  <span className={`text-xs font-semibold ${theme.textMuted}`}>
+                    • يبدأ من <strong className={theme.textMain}>{pageData.price}</strong>
+                  </span>
+                )}
               </div>
+
               <h1
                 contentEditable={!isFullscreen}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateField('headline', e.currentTarget.innerText)}
-                className={`text-2xl md:text-4xl lg:text-[42px] font-bold leading-[1.3] mb-5 ${theme.textMain} focus:outline-none cursor-text`}
+                className={`text-2xl md:text-4xl font-bold leading-[1.3] ${theme.textMain} focus:outline-none cursor-text`}
               >
                 {pageData.headline}
               </h1>
+
               <p
                 contentEditable={!isFullscreen}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateField('subheadline', e.currentTarget.innerText)}
-                className={`text-sm md:text-base leading-relaxed mb-8 max-w-2xl ${theme.textMuted} focus:outline-none cursor-text`}
+                className={`text-sm md:text-base leading-relaxed max-w-2xl ${theme.textMuted} focus:outline-none cursor-text`}
               >
                 {pageData.subheadline}
               </p>
-              <div className="flex flex-wrap items-center gap-3">
+
+              <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
-                  onClick={() => scrollToSection(sections.catalog ? 'catalog-section' : 'order-section')}
-                  className={`px-6 py-3 rounded text-xs md:text-sm font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
+                  onClick={() => scrollToSection('order-section')}
+                  className={`px-6 py-2.5 rounded text-xs md:text-sm font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
                 >
                   <span
                     contentEditable={!isFullscreen}
@@ -632,8 +646,8 @@ export default function CanvasFrame({
                   </span>
                 </button>
                 <button
-                  onClick={() => scrollToSection('pricing-section')}
-                  className={`px-5 py-3 rounded text-xs md:text-sm font-medium transition-colors cursor-pointer ${theme.secondaryBtn}`}
+                  onClick={() => scrollToSection(sections.catalog ? 'catalog-section' : 'pricing-section')}
+                  className={`px-5 py-2.5 rounded text-xs md:text-sm font-medium transition-colors cursor-pointer ${theme.secondaryBtn}`}
                 >
                   <span
                     contentEditable={!isFullscreen}
@@ -646,15 +660,22 @@ export default function CanvasFrame({
                   </span>
                 </button>
               </div>
+
+              {/* Clean Trust Badges Strip */}
+              <div className={`pt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] ${theme.textMuted}`}>
+                <span>✓ الدفع نقداً عند الاستلام</span>
+                <span>✓ شحن سريع لجميع المحافظات</span>
+                <span>✓ معاينة الطلب قبل الاستلام</span>
+              </div>
             </div>
 
             {sections.heroImage && pageData.heroImage && (
-              <div className="px-6 md:px-12 pb-12">
-                <div className={`relative group overflow-hidden rounded border ${theme.borderClass}`}>
+              <div className="md:col-span-5">
+                <div className={`relative group overflow-hidden rounded-lg border ${theme.borderClass} ${theme.cardClass} shadow-sm`}>
                   <img
                     src={pageData.heroImage}
                     alt={pageData.brandName || ''}
-                    className="w-full h-64 md:h-[420px] object-cover"
+                    className="w-full h-60 md:h-[320px] object-cover"
                   />
                   {!isFullscreen && (
                     <button
@@ -1937,23 +1958,35 @@ export default function CanvasFrame({
 
               {/* STEP 4: PROMO CODE + LIVE COD INVOICE SUMMARY */}
               <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} space-y-3`}>
-                {/* Promo Code Input */}
-                <div className="flex items-center gap-2 pb-3 border-b border-zinc-200/60">
-                  <input
-                    type="text"
-                    value={promoInput}
-                    onChange={(e) => setPromoInput(e.target.value)}
-                    placeholder={`هل لديك كود خصم؟ (مثال: ${pageData.promoCode || 'WELCOME10'})`}
-                    className={`flex-1 px-3 py-1.5 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyPromo}
-                    className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer ${theme.secondaryBtn}`}
-                  >
-                    تطبيق الكود
-                  </button>
-                </div>
+                {/* Collapsible Promo Code Trigger */}
+                {!showPromoInput && !promoApplied ? (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowPromoInput(true)}
+                      className={`text-[11px] underline ${theme.textMuted} hover:opacity-80 cursor-pointer`}
+                    >
+                      + هل لديك كود خصم؟
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 pb-3 border-b border-zinc-200/60">
+                    <input
+                      type="text"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value)}
+                      placeholder={`أدخل الكود (مثال: ${pageData.promoCode || 'WELCOME10'})`}
+                      className={`flex-1 px-3 py-1.5 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer ${theme.secondaryBtn}`}
+                    >
+                      تطبيق
+                    </button>
+                  </div>
+                )}
                 {promoError && <div className="text-[11px] text-amber-800">{promoError}</div>}
                 {promoApplied && (
                   <div className="text-[11px] text-emerald-800 font-semibold">
@@ -2167,10 +2200,11 @@ export default function CanvasFrame({
           </div>
         )}
 
-        {/* Navigation Bar */}
-        <header className={`border-b ${theme.borderClass} ${isMobile ? 'px-4 py-3.5' : 'px-6 @md:px-12 py-5'} sticky top-0 z-20 ${theme.bgClass}/95 backdrop-blur-sm`}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-4 min-w-0">
+        {/* Navigation Bar — Clean 3-Zone Balanced Storefront Header */}
+        <header className={`border-b ${theme.borderClass} ${isMobile ? 'px-4 py-3' : 'px-6 @md:px-12 py-4'} sticky top-0 z-20 ${theme.bgClass}/95 backdrop-blur-sm`}>
+          <div className="flex items-center justify-between gap-3">
+            {/* Zone 1 (Right): Brand Identity */}
+            <div className="flex items-center gap-2.5 min-w-0">
               <span
                 contentEditable={!isFullscreen}
                 suppressContentEditableWarning
@@ -2179,40 +2213,47 @@ export default function CanvasFrame({
               >
                 {pageData.brandName || 'اسم المشروع'}
               </span>
-
-              {!isMobile && (
-                <nav className={`hidden @md:flex items-center gap-5 text-xs ${theme.textMuted}`}>
-                  {sections.catalog && (
-                    <button onClick={() => scrollToSection('catalog-section')} className="hover:underline cursor-pointer">
-                      المعروضات
-                    </button>
-                  )}
-                  {sections.features && (
-                    <button onClick={() => scrollToSection('features-section')} className="hover:underline cursor-pointer">
-                      المميزات
-                    </button>
-                  )}
-                  {sections.pricing && (
-                    <button onClick={() => scrollToSection('pricing-section')} className="hover:underline cursor-pointer">
-                      الباقات والأسعار
-                    </button>
-                  )}
-                  {sections.faq && (
-                    <button onClick={() => scrollToSection('faq-section')} className="hover:underline cursor-pointer">
-                      الأسئلة الشائعة
-                    </button>
-                  )}
-                </nav>
+              {!isMobile && pageData.category && (
+                <span className={`hidden @md:inline-block text-[10px] px-2 py-0.5 rounded ${theme.badgeBg} font-medium`}>
+                  {pageData.category}
+                </span>
               )}
             </div>
 
+            {/* Zone 2 (Center): Centered Storefront Navigation Links */}
+            {!isMobile && (
+              <nav className={`hidden @md:flex items-center justify-center gap-6 text-xs font-medium ${theme.textMuted}`}>
+                {sections.catalog && (
+                  <button onClick={() => scrollToSection('catalog-section')} className={`hover:${theme.textMain} transition-colors cursor-pointer`}>
+                    المنتجات
+                  </button>
+                )}
+                {sections.features && (
+                  <button onClick={() => scrollToSection('features-section')} className={`hover:${theme.textMain} transition-colors cursor-pointer`}>
+                    المميزات
+                  </button>
+                )}
+                {sections.pricing && (
+                  <button onClick={() => scrollToSection('pricing-section')} className={`hover:${theme.textMain} transition-colors cursor-pointer`}>
+                    الباقات
+                  </button>
+                )}
+                {sections.faq && (
+                  <button onClick={() => scrollToSection('faq-section')} className={`hover:${theme.textMain} transition-colors cursor-pointer`}>
+                    الأسئلة الشائعة
+                  </button>
+                )}
+              </nav>
+            )}
+
+            {/* Zone 3 (Left): Cart & Primary Order Action */}
             <div className="flex items-center gap-2 shrink-0">
               {cartCount > 0 && (
                 <button
                   onClick={() => scrollToSection('order-section')}
                   className={`text-[11px] px-2.5 py-1.5 rounded font-semibold border ${theme.borderClass} ${theme.surfaceClass} ${theme.textMain} cursor-pointer`}
                 >
-                  {isMobile ? `السلة (${cartCount})` : `سلة الطلب (${cartCount}) — ${cartSubtotal} ${currency}`}
+                  {isMobile ? `السلة (${cartCount})` : `السلة (${cartCount}) — ${cartSubtotal} ${currency}`}
                 </button>
               )}
               <button

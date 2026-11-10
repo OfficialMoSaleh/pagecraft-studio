@@ -90,7 +90,9 @@ export default function App() {
 
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];
 
-  const [sidebarTab, setSidebarTab] = useState('design');
+  const [sidebarTab, setSidebarTab] = useState('prompt');
+  const [openContentPanel, setOpenContentPanel] = useState('basic');
+  const [openDesignPanel, setOpenDesignPanel] = useState('colors_fonts');
   const [promptInput, setPromptInput] = useState(
     activeProject?.prompt ||
       'دار عطور محلية باسم "أثر" تعتمد على الزيوت الطبيعية الخالصة وتعتيق الأخشاب العطرية يدوياً بأسعار تبدأ من 340 ج.م'
@@ -379,6 +381,52 @@ export default function App() {
     }));
   };
 
+  // One-Click Page Simplicity Presets ('single' | 'focused' | 'full')
+  const handleApplyPagePreset = (mode) => {
+    setHistory((prev) => [...prev.slice(-9), pageData]);
+    if (mode === 'single') {
+      handleUpdateField('sections', {
+        ...DEFAULT_SECTIONS,
+        announcement: true,
+        hero: true,
+        heroImage: true,
+        stats: false,
+        catalog: false,
+        features: true,
+        process: false,
+        pricing: false,
+        testimonial: false,
+        faq: false,
+        orderForm: true,
+      });
+    } else if (mode === 'focused') {
+      handleUpdateField('sections', {
+        ...DEFAULT_SECTIONS,
+        announcement: true,
+        hero: true,
+        heroImage: true,
+        stats: false,
+        catalog: true,
+        features: false,
+        process: false,
+        pricing: false,
+        testimonial: true,
+        faq: false,
+        orderForm: true,
+      });
+    } else {
+      handleUpdateField('sections', { ...DEFAULT_SECTIONS });
+    }
+  };
+
+  const secFlags = { ...DEFAULT_SECTIONS, ...(pageData.sections || {}) };
+  const activePageMode =
+    !secFlags.catalog && !secFlags.pricing && !secFlags.stats && secFlags.orderForm
+      ? 'single'
+      : secFlags.catalog && !secFlags.pricing && !secFlags.stats && !secFlags.process
+      ? 'focused'
+      : 'full';
+
   const handleUndo = () => {
     if (history.length === 0) return;
     const previous = history[history.length - 1];
@@ -574,1085 +622,1271 @@ export default function App() {
   const newOrdersCount = orders.filter((o) => o.status === 'new').length;
 
   return (
-    <div className="min-h-screen bg-[#ECEAE4] text-zinc-900 flex flex-col lg:flex-row font-sans">
-      {/* Right Sidebar: Comprehensive Multi-Tab Editor */}
-      <aside className="w-full lg:w-[390px] xl:w-[420px] bg-[#F7F6F2] border-b lg:border-b-0 lg:border-l border-[#DFDDD6] flex flex-col shrink-0 lg:h-screen lg:sticky lg:top-0">
-        {/* Studio Header + Active Project Switcher */}
-        <div className="px-5 py-3.5 border-b border-[#E5E3DC] space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-base font-bold tracking-tight text-zinc-900">مِعمار الصفحات</h1>
-              <p className="text-[11px] text-zinc-500">محرر تخطيطات صفحات الهبوط والكتالوج</p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {history.length > 0 && (
-                <button
-                  onClick={handleUndo}
-                  className="text-[11px] text-zinc-600 hover:text-zinc-900 underline cursor-pointer ml-1"
-                >
-                  تراجع
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowOrdersModal(true)}
-                className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
-                title="صندوق الطلبات وتصدير شيت الشحن (EasyOrders Inbox)"
-              >
-                <span>الطلبات ({orders.length})</span>
-                {newOrdersCount > 0 && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowProjectsModal(true)}
-                className="px-2.5 py-1.5 bg-white hover:bg-[#ECEAE3] text-zinc-900 border border-[#D8D5CD] rounded text-[11px] font-semibold transition-colors cursor-pointer"
-              >
-                المشاريع ({projects.length})
-              </button>
-            </div>
+    <div className="min-h-screen bg-[#ECEAE4] text-zinc-900 flex flex-col font-sans">
+      {/* =====================================================================
+          UNIFIED TOP STUDIO HEADER BAR (Single, Clean, Non-Duplicated)
+         ===================================================================== */}
+      <header className="h-14 bg-[#F7F6F2] border-b border-[#DFDDD6] px-4 lg:px-6 flex items-center justify-between gap-3 sticky top-0 z-40">
+        {/* Right Zone: Brand Title + Active Project Switcher Pill */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-sm bg-zinc-900 inline-block" />
+            <h1 className="text-sm md:text-base font-bold tracking-tight text-zinc-900">
+              مِعمار الصفحات
+            </h1>
           </div>
 
-          {/* Active Project Status Bar */}
-          <div className="px-3 py-2 rounded bg-white border border-[#E2DFD7] flex items-center justify-between text-[11px]">
-            <div className="flex items-center gap-2 truncate">
-              <span
-                className={`w-2 h-2 rounded-full shrink-0 ${
-                  activeProject?.isPublished ? 'bg-emerald-600' : 'bg-zinc-400'
-                }`}
-              />
-              <span className="text-zinc-500">المشروع:</span>
-              <strong className="text-zinc-900 truncate">
-                {pageData.brandName || activeProject?.name}
-              </strong>
-            </div>
+          <span className="text-zinc-300 hidden sm:inline">|</span>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowProjectsModal(true)}
-                className="text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
-              >
-                تبديل
-              </button>
-              <span className="text-zinc-300">|</span>
-              <button
-                type="button"
-                onClick={() => setShowPublishModal(true)}
-                className="font-semibold text-zinc-900 hover:underline cursor-pointer"
-              >
-                {activeProject?.isPublished ? 'الرابط الحي' : 'نشر الآن'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Clean 3-Tab Navigation */}
-        <div className="grid grid-cols-3 border-b border-[#E5E3DC] bg-[#F1EFEA] text-xs">
+          {/* Active Project Button */}
           <button
             type="button"
-            onClick={() => setSidebarTab('prompt')}
-            className={`py-3 font-semibold border-b-2 transition-colors cursor-pointer ${
-              sidebarTab === 'prompt'
-                ? 'border-zinc-900 text-zinc-900 bg-[#F7F6F2]'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800'
-            }`}
+            onClick={() => setShowProjectsModal(true)}
+            className="px-3 py-1.5 rounded bg-white hover:bg-[#ECEAE3] border border-[#D8D5CD] flex items-center gap-2 text-xs transition-colors cursor-pointer max-w-[220px]"
+            title="تبديل المشروع أو إنشاء مشروع جديد"
           >
-            ١. الوصف والتوليد
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                activeProject?.isPublished ? 'bg-emerald-600' : 'bg-zinc-400'
+              }`}
+            />
+            <span className="text-zinc-500 hidden sm:inline">المشروع:</span>
+            <strong className="text-zinc-900 truncate">
+              {pageData.brandName || activeProject?.name}
+            </strong>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F1EFEA] text-zinc-600 font-mono shrink-0">
+              {projects.length}
+            </span>
           </button>
-          <button
-            type="button"
-            onClick={() => setSidebarTab('content')}
-            className={`py-3 font-semibold border-b-2 transition-colors cursor-pointer ${
-              sidebarTab === 'content'
-                ? 'border-zinc-900 text-zinc-900 bg-[#F7F6F2]'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800'
-            }`}
-          >
-            ٢. المنتجات والأسعار
-          </button>
-          <button
-            type="button"
-            onClick={() => setSidebarTab('design')}
-            className={`py-3 font-semibold border-b-2 transition-colors cursor-pointer ${
-              sidebarTab === 'design'
-                ? 'border-zinc-900 text-zinc-900 bg-[#F7F6F2]'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800'
-            }`}
-          >
-            ٣. التخطيط والأقسام
-          </button>
-        </div>
 
-        {/* Tab Contents */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* TAB 1: PROMPT & GENERATION */}
-          {sidebarTab === 'prompt' && (
-            <>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-800">اطلب مواصفات موقعك بالتفصيل</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowKeyField(!showKeyField)}
-                    className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
-                  >
-                    {geminiKey ? 'مفتاح Gemini متصل' : 'ربط Gemini API (اختياري)'}
-                  </button>
-                </div>
-
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
-                  اكتب اسم مشروعك، مجاله، أسعارك، أو نسبة الخصم (مثال: براند عطور باسم "سكون" بأسعار تبدأ من 350 ج.م وخصم 20%).
-                </p>
-
-                {showKeyField && (
-                  <div className="p-3 bg-white border border-[#D8D5CD] rounded space-y-1.5">
-                    <label className="text-[11px] font-medium text-zinc-700 block">
-                      مفتاح Gemini API لتوليد مخصص لأي مجال:
-                    </label>
-                    <input
-                      type="password"
-                      value={geminiKey}
-                      onChange={(e) => handleSaveKey(e.target.value)}
-                      placeholder="AIzaSy..."
-                      className="w-full bg-zinc-50 border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs font-mono"
-                    />
-                  </div>
-                )}
-
-                <textarea
-                  rows="4"
-                  value={promptInput}
-                  onChange={(e) => setPromptInput(e.target.value)}
-                  placeholder="صف مشروعك ومنتجاتك وأسعارك هنا..."
-                  className="w-full bg-white border border-[#D8D5CD] rounded p-3 text-xs text-zinc-900 leading-relaxed placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors resize-none"
-                />
-
-                {genError && <p className="text-[11px] text-amber-800">{genError}</p>}
-
-                <button
-                  type="button"
-                  disabled={isGenerating}
-                  onClick={() => handleGenerate()}
-                  className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
-                >
-                  {isGenerating ? 'جاري بناء الموقع بالكامل...' : 'بناء وتحديث الموقع'}
-                </button>
-              </div>
-
-              {/* Presets */}
-              <div className="pt-4 border-t border-[#E5E3DC] space-y-2.5">
-                <span className="text-xs font-bold text-zinc-800 block">نماذج قطاعات كاملة بتخطيطات متنوعة:</span>
-                <div className="space-y-1.5">
-                  {PRESET_PROMPTS.map((preset, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectPreset(preset)}
-                      className="w-full text-right p-2.5 rounded bg-white hover:bg-[#ECEAE3] border border-[#E5E2DC] transition-colors cursor-pointer block"
-                    >
-                      <div className="text-xs font-bold text-zinc-800">{preset.title}</div>
-                      <div className="text-[11px] text-zinc-500 truncate mt-0.5">{preset.prompt}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* TAB 2: DEEP CONTENT, IMAGES, PRODUCTS & PRICING EDITOR */}
-          {sidebarTab === 'content' && (
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold text-zinc-900 border-b border-[#E5E3DC] pb-2">
-                  البيانات الأساسية والصورة الرئيسية
-                </h3>
-
-                <div>
-                  <span className="text-[11px] text-zinc-500 block mb-1">اسم العلامة التجارية</span>
-                  <input
-                    type="text"
-                    value={pageData.brandName || ''}
-                    onChange={(e) => handleUpdateField('brandName', e.target.value)}
-                    className="w-full bg-white border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs text-zinc-900"
-                  />
-                </div>
-
-                <div>
-                  <span className="text-[11px] text-zinc-500 block mb-1">العنوان الرئيسي (Headline)</span>
-                  <textarea
-                    rows="2"
-                    value={pageData.headline || ''}
-                    onChange={(e) => handleUpdateField('headline', e.target.value)}
-                    className="w-full bg-white border border-[#D8D5CD] rounded p-2 text-xs text-zinc-900"
-                  />
-                </div>
-
-                <div>
-                  <span className="text-[11px] text-zinc-500 block mb-1">شريط الإعلان العلوي</span>
-                  <input
-                    type="text"
-                    value={pageData.announcement || ''}
-                    onChange={(e) => handleUpdateField('announcement', e.target.value)}
-                    className="w-full bg-white border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs text-zinc-900"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-zinc-600">الصورة الرئيسية للموقع</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openImagePicker({
-                        title: 'تغيير الصورة الرئيسية للموقع',
-                        currentUrl: pageData.heroImage,
-                        onSelect: (url) => handleUpdateField('heroImage', url),
-                      })
-                    }
-                    className="px-3 py-1.5 bg-zinc-900 text-white text-[11px] font-medium rounded cursor-pointer"
-                  >
-                    رفع أو اختيار صورة
-                  </button>
-                </div>
-              </div>
-
-              {/* Products / Catalog Manager */}
-              <div className="space-y-3 pt-2 border-t border-[#E5E3DC]">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-zinc-900">
-                    إدارة المنتجات والخدمات ({products.length})
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={addNewProductItem}
-                    className="text-[11px] font-semibold text-zinc-900 underline cursor-pointer"
-                  >
-                    + إضافة منتج
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {products.map((prod, idx) => (
-                    <div
-                      key={prod.id}
-                      className="p-3 bg-white border border-[#DFDDD6] rounded space-y-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={prod.image}
-                          alt={prod.name}
-                          className="w-10 h-10 rounded object-cover border border-zinc-200 shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <input
-                            type="text"
-                            value={prod.name}
-                            onChange={(e) => updateProductItem(idx, 'name', e.target.value)}
-                            className="w-full text-xs font-bold text-zinc-900 border-b border-transparent focus:border-zinc-400 focus:outline-none"
-                          />
-                          <div className="flex items-center gap-2 mt-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openImagePicker({
-                                  title: `تغيير صورة: ${prod.name}`,
-                                  currentUrl: prod.image,
-                                  onSelect: (url) => updateProductItem(idx, 'image', url),
-                                })
-                              }
-                              className="text-[10px] text-zinc-600 underline cursor-pointer"
-                            >
-                              تغيير الصورة
-                            </button>
-                            {products.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => deleteProductItem(prod.id)}
-                                className="text-[10px] text-red-700 underline cursor-pointer"
-                              >
-                                حذف
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-[10px] text-zinc-400 block">السعر</span>
-                          <input
-                            type="number"
-                            value={prod.price}
-                            onChange={(e) => updateProductItem(idx, 'price', Number(e.target.value) || 0)}
-                            className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs"
-                          />
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-zinc-400 block">التصنيف</span>
-                          <input
-                            type="text"
-                            value={prod.category || ''}
-                            onChange={(e) => updateProductItem(idx, 'category', e.target.value)}
-                            className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Pricing Tiers Quick Editor */}
-              {pageData.pricingTiers && (
-                <div className="space-y-3 pt-2 border-t border-[#E5E3DC]">
-                  <h3 className="text-xs font-bold text-zinc-900">تعديل باقات الأسعار الثلاث</h3>
-                  {pageData.pricingTiers.map((tier, idx) => (
-                    <div key={tier.id || idx} className="p-2.5 bg-white border border-[#DFDDD6] rounded grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-[10px] text-zinc-400 block">اسم الباقة</span>
-                        <input
-                          type="text"
-                          value={tier.name}
-                          onChange={(e) => {
-                            const copy = [...pageData.pricingTiers];
-                            copy[idx] = { ...copy[idx], name: e.target.value };
-                            handleUpdateField('pricingTiers', copy);
-                          }}
-                          className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-zinc-400 block">السعر المعروض</span>
-                        <input
-                          type="text"
-                          value={tier.price}
-                          onChange={(e) => {
-                            const copy = [...pageData.pricingTiers];
-                            copy[idx] = { ...copy[idx], price: e.target.value };
-                            handleUpdateField('pricingTiers', copy);
-                          }}
-                          className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs font-bold"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* EasyOrders Tiered Bundles & Variants Editor */}
-              <div className="space-y-3 pt-2 border-t border-[#E5E3DC]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-zinc-900">
-                      عروض التوفير والكميات (نظام EasyOrders)
-                    </h3>
-                    <p className="text-[10px] text-zinc-500">
-                      تظهر داخل فورم الشراء السريع لمضاعفة قيمة السلة
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={currentEasyOrder.enableBundleSelector ?? true}
-                    onChange={(e) => handleUpdateEasyOrder('enableBundleSelector', e.target.checked)}
-                    className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
-                    title="تفعيل أو إيقاف عروض الكميات"
-                  />
-                </div>
-
-                {(currentEasyOrder.bundleOffers || []).map((offer, idx) => (
-                  <div
-                    key={offer.id || idx}
-                    className="p-2.5 bg-white border border-[#DFDDD6] rounded space-y-2"
-                  >
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-[10px] text-zinc-400 block">اسم العرض ({offer.qty} قطع)</span>
-                        <input
-                          type="text"
-                          value={offer.title}
-                          onChange={(e) => handleUpdateBundleOffer(idx, 'title', e.target.value)}
-                          className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs font-semibold"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-zinc-400 block">سعر العرض الإجمالي</span>
-                        <input
-                          type="number"
-                          value={offer.price}
-                          onChange={(e) =>
-                            handleUpdateBundleOffer(idx, 'price', Number(e.target.value) || 0)
-                          }
-                          className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs font-bold"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] pt-1">
-                      <span className="text-zinc-600">شحن مجاني لهذا العرض</span>
-                      <input
-                        type="checkbox"
-                        checked={offer.freeShipping ?? false}
-                        onChange={(e) =>
-                          handleUpdateBundleOffer(idx, 'freeShipping', e.target.checked)
-                        }
-                        className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                ))}
-
-                {/* Variants & Order Bump Customization */}
-                <div className="p-2.5 bg-white border border-[#DFDDD6] rounded space-y-2">
-                  <div>
-                    <span className="text-[10px] text-zinc-500 block mb-1">
-                      عنوان خيارات القطعة (مثال: المقاس واللون / الحجم والتركيز)
-                    </span>
-                    <input
-                      type="text"
-                      value={currentEasyOrder.variantLabel || ''}
-                      onChange={(e) => handleUpdateEasyOrder('variantLabel', e.target.value)}
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-zinc-500 block mb-1">
-                      الخيارات المتاحة لكل قطعة (افصل بينها بفاصلة ،)
-                    </span>
-                    <input
-                      type="text"
-                      value={(currentEasyOrder.variantOptions || []).join(' ، ')}
-                      onChange={(e) =>
-                        handleUpdateEasyOrder(
-                          'variantOptions',
-                          e.target.value
-                            .split(/[,،]/)
-                            .map((s) => s.trim())
-                            .filter(Boolean)
-                        )
-                      }
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: SECTION REORDERING, LAYOUT VARIANTS, TYPOGRAPHY & THEME */}
-          {sidebarTab === 'design' && (
-            <div className="space-y-6">
-              {/* Color Palettes & Custom Brand Color Picker */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-800 block">
-                    السمة اللونية وألوان الهوية (Brand Colors)
-                  </label>
-                  {currentCustomColors.enabled && (
-                    <button
-                      type="button"
-                      onClick={handleDisableCustomColors}
-                      className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
-                    >
-                      العودة للثيمات الجاهزة
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.keys(DESIGN_THEMES).map((key) => {
-                    const th = DESIGN_THEMES[key];
-                    const isSelected = activeThemeKey === key && !currentCustomColors.enabled;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          setActiveThemeKey(key);
-                          handleDisableCustomColors();
-                        }}
-                        className={`py-2 px-3 rounded text-xs font-medium border text-right transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-zinc-900 bg-zinc-900 text-white'
-                            : 'border-[#D8D5CD] bg-white text-zinc-700 hover:bg-zinc-50'
-                        }`}
-                      >
-                        {th.name}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Curated Brand Color Swatches + Custom HTML5 Color Pickers */}
-                <div className="p-3.5 bg-white rounded border border-[#DFDDD6] space-y-3">
-                  <span className="text-[11px] font-bold text-zinc-700 block">
-                    لوحات ألوان البراندات وتخصيص الألوان الحر:
-                  </span>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {BRAND_COLOR_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleApplyBrandColorPreset(preset)}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#D8D5CD] hover:border-zinc-900 bg-[#FAF9F6] text-[11px] font-medium text-zinc-800 cursor-pointer"
-                      >
-                        <span
-                          className="w-3 h-3 rounded-full border border-black/10 shrink-0"
-                          style={{ backgroundColor: preset.primary }}
-                        />
-                        <span>{preset.name}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-zinc-100">
-                    <label className="flex items-center justify-between p-2 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
-                      <span className="text-[11px] text-zinc-700 font-medium">لون الأزرار والبراند</span>
-                      <input
-                        type="color"
-                        value={currentCustomColors.primary}
-                        onChange={(e) => handleUpdateCustomColor('primary', e.target.value)}
-                        className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between p-2 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
-                      <span className="text-[11px] text-zinc-700 font-medium">لون خلفية الموقع</span>
-                      <input
-                        type="color"
-                        value={currentCustomColors.background}
-                        onChange={(e) => handleUpdateCustomColor('background', e.target.value)}
-                        className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between p-2 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
-                      <span className="text-[11px] text-zinc-700 font-medium">لون البطاقات</span>
-                      <input
-                        type="color"
-                        value={currentCustomColors.surface}
-                        onChange={(e) => handleUpdateCustomColor('surface', e.target.value)}
-                        className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between p-2 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
-                      <span className="text-[11px] text-zinc-700 font-medium">لون النصوص</span>
-                      <input
-                        type="color"
-                        value={currentCustomColors.text}
-                        onChange={(e) => handleUpdateCustomColor('text', e.target.value)}
-                        className="w-6 h-6 rounded border-0 cursor-pointer bg-transparent"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Arabic Font Family Selector */}
-              <div className="space-y-2.5 pt-4 border-t border-[#E5E3DC]">
-                <label className="text-xs font-bold text-zinc-900 block">
-                  اختيار الخط العربي للموقع (6 خطوط عربية)
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ARABIC_FONTS.map((font) => {
-                    const isCurrentFont = (currentTypography.fontFamily || 'Cairo') === font.id;
-                    return (
-                      <button
-                        key={font.id}
-                        type="button"
-                        onClick={() => handleUpdateTypographyField('fontFamily', font.id)}
-                        style={{ fontFamily: font.css }}
-                        className={`p-2.5 rounded border text-right transition-all cursor-pointer ${
-                          isCurrentFont
-                            ? 'bg-zinc-900 text-white border-zinc-900'
-                            : 'bg-white text-zinc-800 border-[#D8D5CD] hover:border-zinc-500'
-                        }`}
-                      >
-                        <div className="text-xs font-bold">{font.name}</div>
-                        <div
-                          className={`text-[10px] mt-0.5 ${
-                            isCurrentFont ? 'text-zinc-300' : 'text-zinc-500'
-                          }`}
-                        >
-                          {font.desc}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Typography & Font Size Controls */}
-              <div className="space-y-3 pt-4 border-t border-[#E5E3DC]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-xs font-bold text-zinc-900 block">
-                      التحكم في حجم الخطوط والنصوص
-                    </label>
-                    <p className="text-[11px] text-zinc-500">
-                      اختر مقياساً عاماً أو خصص حجم كل عنصر بالبيكسل
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyTypographyPreset(DEFAULT_TYPOGRAPHY)}
-                    className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
-                  >
-                    ضبط افتراضي
-                  </button>
-                </div>
-
-                {/* 4 Quick Presets */}
-                <div className="grid grid-cols-4 gap-1.5">
-                  {TYPOGRAPHY_PRESETS.map((preset) => {
-                    const isChosen = currentTypography.scale === preset.id;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleApplyTypographyPreset(preset.values)}
-                        className={`py-1.5 px-2 rounded text-[11px] font-semibold border transition-all cursor-pointer ${
-                          isChosen
-                            ? 'bg-zinc-900 text-white border-zinc-900'
-                            : 'bg-white text-zinc-700 border-[#D8D5CD] hover:bg-zinc-50'
-                        }`}
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Fine-Grained Font Size Sliders */}
-                <div className="p-3.5 bg-white rounded border border-[#DFDDD6] space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] mb-1">
-                      <span className="text-zinc-700 font-medium">حجم العنوان الرئيسي (Hero)</span>
-                      <span className="font-mono font-bold text-zinc-900">{currentTypography.heroSize}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="22"
-                      max="54"
-                      value={currentTypography.heroSize}
-                      onChange={(e) => handleUpdateTypographyField('heroSize', e.target.value)}
-                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] mb-1">
-                      <span className="text-zinc-700 font-medium">حجم عناوين الأقسام</span>
-                      <span className="font-mono font-bold text-zinc-900">{currentTypography.sectionSize}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="16"
-                      max="34"
-                      value={currentTypography.sectionSize}
-                      onChange={(e) => handleUpdateTypographyField('sectionSize', e.target.value)}
-                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] mb-1">
-                      <span className="text-zinc-700 font-medium">حجم عناوين المنتجات والبطاقات</span>
-                      <span className="font-mono font-bold text-zinc-900">{currentTypography.cardTitleSize}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="12"
-                      max="23"
-                      value={currentTypography.cardTitleSize}
-                      onChange={(e) => handleUpdateTypographyField('cardTitleSize', e.target.value)}
-                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] mb-1">
-                      <span className="text-zinc-700 font-medium">حجم الوصف والفقرات النصية</span>
-                      <span className="font-mono font-bold text-zinc-900">{currentTypography.bodySize}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="11"
-                      max="19"
-                      value={currentTypography.bodySize}
-                      onChange={(e) => handleUpdateTypographyField('bodySize', e.target.value)}
-                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] mb-1">
-                      <span className="text-zinc-700 font-medium">حجم الأسعار والأرقام</span>
-                      <span className="font-mono font-bold text-zinc-900">{currentTypography.priceSize}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="14"
-                      max="30"
-                      value={currentTypography.priceSize}
-                      onChange={(e) => handleUpdateTypographyField('priceSize', e.target.value)}
-                      className="w-full accent-zinc-900 cursor-pointer h-1.5"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Interactive Section Order & Layout Variant Builder */}
-              <div className="space-y-3 pt-4 border-t border-[#E5E3DC]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-xs font-bold text-zinc-900 block">
-                      ترتيب الأقسام وتخطيط كل قسم
-                    </label>
-                    <p className="text-[11px] text-zinc-500">
-                      اسحب القسم لإعادة ترتيبه أو استخدم الأسهم، واختر التخطيط المناسب
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleResetLayoutAndOrder}
-                    className="text-[11px] text-zinc-500 hover:text-zinc-900 underline shrink-0 cursor-pointer"
-                  >
-                    استعادة الافتراضي
-                  </button>
-                </div>
-
-                {/* Top Announcement Toggle */}
-                <div className="p-2.5 bg-white rounded border border-[#DFDDD6] flex items-center justify-between text-xs">
-                  <span className="font-medium text-zinc-700">شريط التنبيه العلوي (ثابت بالأعلى)</span>
-                  <input
-                    type="checkbox"
-                    checked={pageData.sections?.announcement ?? true}
-                    onChange={() => handleToggleSection('announcement')}
-                    className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
-                  />
-                </div>
-
-                {/* Reorderable Sections List */}
-                <div className="space-y-2">
-                  {currentSectionOrder.map((secKey, idx) => {
-                    const isVisible = pageData.sections?.[secKey] ?? true;
-                    const layoutOptions = SECTION_LAYOUT_OPTIONS[secKey];
-                    const activeLayout = currentLayouts[secKey];
-                    const isDragging = draggedSection === secKey;
-                    const isDragOver = dragOverSection === secKey;
-
-                    return (
-                      <div
-                        key={secKey}
-                        draggable
-                        onDragStart={() => handleDragStart(secKey)}
-                        onDragOver={(e) => handleDragOver(e, secKey)}
-                        onDrop={() => handleDrop(secKey)}
-                        onDragEnd={() => {
-                          setDraggedSection(null);
-                          setDragOverSection(null);
-                        }}
-                        className={`p-3 rounded border transition-all ${
-                          isDragging
-                            ? 'opacity-50 border-zinc-900 bg-zinc-100'
-                            : isDragOver
-                            ? 'border-2 border-zinc-900 bg-zinc-50'
-                            : isVisible
-                            ? 'bg-white border-[#DFDDD6]'
-                            : 'bg-zinc-100/70 border-zinc-200 opacity-60'
-                        }`}
-                      >
-                        {/* Top row: Drag Handle + Name + Up/Down + Visibility */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span
-                              className="text-zinc-400 cursor-grab active:cursor-grabbing select-none font-mono text-xs"
-                              title="اسحب لتغيير الترتيب"
-                            >
-                              ::
-                            </span>
-                            <span className="text-xs font-bold text-zinc-800 truncate">
-                              {idx + 1}. {SECTION_LABELS[secKey] || secKey}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              disabled={idx === 0}
-                              onClick={() => handleMoveSection(secKey, 'up')}
-                              className="w-6 h-6 rounded bg-zinc-100 hover:bg-zinc-200 disabled:opacity-30 text-zinc-800 text-xs flex items-center justify-center cursor-pointer"
-                              title="تحريك لأعلى"
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              disabled={idx === currentSectionOrder.length - 1}
-                              onClick={() => handleMoveSection(secKey, 'down')}
-                              className="w-6 h-6 rounded bg-zinc-100 hover:bg-zinc-200 disabled:opacity-30 text-zinc-800 text-xs flex items-center justify-center cursor-pointer"
-                              title="تحريك لأسفل"
-                            >
-                              ↓
-                            </button>
-                            <input
-                              type="checkbox"
-                              checked={isVisible}
-                              onChange={() => handleToggleSection(secKey)}
-                              title="إظهار أو إخفاء القسم"
-                              className="accent-zinc-900 w-3.5 h-3.5 mr-1.5 cursor-pointer"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Bottom row: Layout Variants Selector (if section has variants and is visible) */}
-                        {isVisible && layoutOptions && (
-                          <div className="mt-2.5 pt-2 border-t border-zinc-100">
-                            <div className="flex flex-wrap gap-1">
-                              {layoutOptions.map((opt) => {
-                                const isChosen = activeLayout === opt.id;
-                                return (
-                                  <button
-                                    key={opt.id}
-                                    type="button"
-                                    onClick={() => handleChangeSectionLayout(secKey, opt.id)}
-                                    className={`text-[10px] px-2 py-1 rounded transition-colors cursor-pointer ${
-                                      isChosen
-                                        ? 'bg-zinc-900 text-white font-semibold'
-                                        : 'bg-[#F1EFEA] text-zinc-700 hover:bg-[#E4E1D8]'
-                                    }`}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Order, EasyOrders COD & WhatsApp Settings */}
-              <div className="space-y-3 pt-4 border-t border-[#E5E3DC]">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-800 block">
-                    إعدادات الدفع عند الاستلام (EasyOrders COD)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowOrdersModal(true)}
-                    className="text-[11px] font-semibold text-zinc-900 underline cursor-pointer"
-                  >
-                    فتح سجل الطلبات ({orders.length})
-                  </button>
-                </div>
-
-                {/* Conversion Boosters Toggles */}
-                <div className="p-3 bg-white rounded border border-[#DFDDD6] space-y-2.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-700 font-medium">عروض التوفير (١ قطعة / ٢ قطعة / ٣ قطع)</span>
-                    <input
-                      type="checkbox"
-                      checked={currentEasyOrder.enableBundleSelector ?? true}
-                      onChange={(e) => handleUpdateEasyOrder('enableBundleSelector', e.target.checked)}
-                      className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-700 font-medium">عرض الترقية السريع داخل السلة (Order Bump)</span>
-                    <input
-                      type="checkbox"
-                      checked={currentEasyOrder.enableOrderBump ?? true}
-                      onChange={(e) => handleUpdateEasyOrder('enableOrderBump', e.target.checked)}
-                      className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-700 font-medium">شريط ندرة المخزون المتبقي</span>
-                    <input
-                      type="checkbox"
-                      checked={currentEasyOrder.enableStockScarcity ?? true}
-                      onChange={(e) => handleUpdateEasyOrder('enableStockScarcity', e.target.checked)}
-                      className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-700 font-medium">شريط الشراء السفلي الثابت (Sticky Bar)</span>
-                    <input
-                      type="checkbox"
-                      checked={currentEasyOrder.enableStickyBar ?? true}
-                      onChange={(e) => handleUpdateEasyOrder('enableStickyBar', e.target.checked)}
-                      className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-[11px] text-zinc-500 block mb-1">
-                    رقم واتساب لاستقبال الطلبات (بالكود الدولي)
-                  </span>
-                  <input
-                    type="text"
-                    value={pageData.whatsappPhone || ''}
-                    onChange={(e) => handleUpdateField('whatsappPhone', e.target.value)}
-                    placeholder="201012345678"
-                    className="w-full bg-white border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs font-mono"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <span className="text-[11px] text-zinc-500 block mb-1">العملة</span>
-                    <input
-                      type="text"
-                      value={pageData.currency || 'ج.م'}
-                      onChange={(e) => handleUpdateField('currency', e.target.value)}
-                      className="w-full bg-white border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-zinc-500 block mb-1">عدد القطع المتبقية</span>
-                    <input
-                      type="number"
-                      value={currentEasyOrder.stockRemaining ?? 9}
-                      onChange={(e) =>
-                        handleUpdateEasyOrder('stockRemaining', Math.max(1, Number(e.target.value) || 9))
-                      }
-                      className="w-full bg-white border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Bottom Publish & Export Bar */}
-        <div className="p-4 border-t border-[#E5E3DC] bg-[#F1EFEA] grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowPublishModal(true)}
-            className="py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
-          >
-            نشر برابط حي مستقل
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowExportModal(true)}
-            className="py-2.5 px-3 bg-white hover:bg-[#ECEAE3] text-zinc-900 border border-[#D8D5CD] text-xs font-semibold rounded transition-colors cursor-pointer"
-          >
-            تصدير الكود (HTML)
-          </button>
-        </div>
-      </aside>
-
-      {/* Left Area: Main Preview Canvas */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Minimal Workspace Bar */}
-        <div className="h-12 border-b border-[#DFDDD6] bg-[#F3F1EC] px-6 flex items-center justify-between text-xs sticky top-0 z-30">
-          <div className="flex items-center gap-4">
-            <span className="text-zinc-400">حجم العرض:</span>
+          {history.length > 0 && (
             <button
+              type="button"
+              onClick={handleUndo}
+              className="px-2.5 py-1 rounded bg-white border border-[#D8D5CD] hover:bg-zinc-100 text-[11px] font-semibold text-zinc-700 cursor-pointer shrink-0"
+              title="التراجع عن آخر خطوة"
+            >
+              ↩ تراجع
+            </button>
+          )}
+        </div>
+
+        {/* Center Zone: Viewport Switcher + Page Simplicity Mode + Quick Font Scale */}
+        <div className="hidden md:flex items-center gap-3">
+          {/* Segmented Device Switcher */}
+          <div className="p-0.5 rounded bg-[#EAE8E1] border border-[#D8D5CD] flex items-center text-xs">
+            <button
+              type="button"
               onClick={() => setDeviceView('desktop')}
-              className={`cursor-pointer transition-colors ${
+              className={`px-3 py-1 rounded transition-all cursor-pointer ${
                 deviceView === 'desktop'
-                  ? 'font-bold text-zinc-900 underline underline-offset-4'
-                  : 'text-zinc-500 hover:text-zinc-900'
+                  ? 'bg-white text-zinc-900 font-bold shadow-xs'
+                  : 'text-zinc-600 hover:text-zinc-900'
               }`}
             >
               سطح المكتب
             </button>
             <button
+              type="button"
               onClick={() => setDeviceView('mobile')}
-              className={`cursor-pointer transition-colors ${
+              className={`px-3 py-1 rounded transition-all cursor-pointer ${
                 deviceView === 'mobile'
-                  ? 'font-bold text-zinc-900 underline underline-offset-4'
-                  : 'text-zinc-500 hover:text-zinc-900'
+                  ? 'bg-white text-zinc-900 font-bold shadow-xs'
+                  : 'text-zinc-600 hover:text-zinc-900'
               }`}
             >
               الجوال
             </button>
-
-            <span className="text-zinc-300 hidden sm:inline">|</span>
-
-            {/* Quick Font Size Controls in Top Bar */}
-            <div className="hidden sm:flex items-center gap-1.5">
-              <span className="text-zinc-400">حجم الخط:</span>
-              <button
-                type="button"
-                onClick={() => handleStepFontSizes(-1)}
-                className="px-2 py-0.5 rounded bg-white border border-[#D8D5CD] hover:bg-zinc-100 text-zinc-800 font-bold text-[11px] cursor-pointer"
-                title="تصغير الخطوط"
-              >
-                A-
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStepFontSizes(1)}
-                className="px-2 py-0.5 rounded bg-white border border-[#D8D5CD] hover:bg-zinc-100 text-zinc-800 font-bold text-[11px] cursor-pointer"
-                title="تكبير الخطوط"
-              >
-                A+
-              </button>
-            </div>
-
-            <span className="text-zinc-300 hidden md:inline">|</span>
-
-            <a
-              href={liveShareUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden md:inline-flex items-center gap-1.5 text-[11px] text-zinc-600 hover:text-zinc-950 bg-white/80 px-2.5 py-1 rounded border border-[#DFDDD6]"
-              title="فتح معاينة الموقع كزائر في نافذة جديدة (محلياً على جهازك)"
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  activeProject?.isPublished ? 'bg-emerald-600' : 'bg-zinc-400'
-                }`}
-              />
-              <span>معاينة محلية كزائر</span>
-              <span className="font-mono dir-ltr">(/p/{activeProject?.slug})</span>
-              <span>↗</span>
-            </a>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* 1-Click Website Simplicity Mode Switcher */}
+          <div
+            className="hidden xl:flex p-0.5 rounded bg-[#EAE8E1] border border-[#D8D5CD] items-center text-[11px]"
+            title="اختر مدى بساطة أو شمولية أقسام الموقع بضغطة واحدة"
+          >
             <button
               type="button"
-              onClick={() => setShowOrdersModal(true)}
-              className="text-zinc-900 font-bold hover:underline cursor-pointer flex items-center gap-1.5"
+              onClick={() => handleApplyPagePreset('single')}
+              className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                activePageMode === 'single'
+                  ? 'bg-zinc-900 text-white font-semibold'
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
             >
-              <span>صندوق الطلبات ({orders.length})</span>
-              {newOrdersCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px]">
-                  {newOrdersCount} جديد
-                </span>
-              )}
+              صفحة منتج واحد
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyPagePreset('focused')}
+              className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                activePageMode === 'focused'
+                  ? 'bg-zinc-900 text-white font-semibold'
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              متجر مختصر
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyPagePreset('full')}
+              className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                activePageMode === 'full'
+                  ? 'bg-zinc-900 text-white font-semibold'
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              موقع شامل
+            </button>
+          </div>
+
+          {/* Quick Font Stepper */}
+          <div className="flex items-center gap-1 bg-white border border-[#D8D5CD] rounded px-1.5 py-0.5">
+            <button
+              type="button"
+              onClick={() => handleStepFontSizes(-1)}
+              className="px-1.5 py-0.5 hover:bg-zinc-100 rounded text-zinc-800 font-bold text-[11px] cursor-pointer"
+              title="تصغير الخطوط"
+            >
+              A-
             </button>
             <span className="text-zinc-300">|</span>
             <button
               type="button"
-              onClick={() => setShowProjectsModal(true)}
-              className="text-zinc-600 hover:text-zinc-900 font-medium cursor-pointer"
+              onClick={() => handleStepFontSizes(1)}
+              className="px-1.5 py-0.5 hover:bg-zinc-100 rounded text-zinc-800 font-bold text-[11px] cursor-pointer"
+              title="تكبير الخطوط"
             >
-              إدارة المشاريع ({projects.length})
-            </button>
-            <span className="text-zinc-300">|</span>
-            <button
-              onClick={() => setIsFullscreen(true)}
-              className="text-zinc-700 font-medium hover:text-zinc-900 cursor-pointer"
-            >
-              معاينة بملء الشاشة
+              A+
             </button>
           </div>
         </div>
 
-        {/* Scrollable Canvas */}
+        {/* Left Zone: Orders Inbox + Fullscreen + Export + Publish */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowOrdersModal(true)}
+            className="px-3 py-1.5 rounded bg-white hover:bg-[#ECEAE3] border border-[#D8D5CD] text-zinc-900 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+            title="صندوق طلبات العملاء وتصدير شيت الشحن (EasyOrders)"
+          >
+            <span>الطلبات ({orders.length})</span>
+            {newOrdersCount > 0 && (
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(true)}
+            className="hidden sm:inline-flex px-3 py-1.5 rounded bg-white hover:bg-[#ECEAE3] border border-[#D8D5CD] text-zinc-700 hover:text-zinc-900 text-xs font-medium transition-colors cursor-pointer"
+          >
+            معاينة كاملة
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowExportModal(true)}
+            className="hidden lg:inline-flex px-3 py-1.5 rounded bg-white hover:bg-[#ECEAE3] border border-[#D8D5CD] text-zinc-700 hover:text-zinc-900 text-xs font-medium transition-colors cursor-pointer"
+          >
+            تصدير الكود
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowPublishModal(true)}
+            className="px-3.5 py-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-colors cursor-pointer"
+          >
+            نشر ومشاركة الموقع
+          </button>
+        </div>
+      </header>
+
+      {/* =====================================================================
+          MAIN WORKSPACE BODY (Right Sidebar + Left Live Preview Canvas)
+         ===================================================================== */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+        {/* Right Sidebar: Clean 3-Step Editor with Collapsible Accordions */}
+        <aside className="w-full lg:w-[375px] xl:w-[400px] bg-[#F7F6F2] border-b lg:border-b-0 lg:border-l border-[#DFDDD6] flex flex-col shrink-0 lg:h-[calc(100vh-3.5rem)] lg:sticky lg:top-14">
+          {/* Clean 3-Tab Navigation */}
+          <div className="grid grid-cols-3 border-b border-[#E5E3DC] bg-[#F1EFEA] text-xs">
+            <button
+              type="button"
+              onClick={() => setSidebarTab('prompt')}
+              className={`py-3 font-semibold border-b-2 transition-colors cursor-pointer ${
+                sidebarTab === 'prompt'
+                  ? 'border-zinc-900 text-zinc-900 bg-[#F7F6F2]'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-800'
+              }`}
+            >
+              ١. الفكرة والذكاء
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidebarTab('content')}
+              className={`py-3 font-semibold border-b-2 transition-colors cursor-pointer ${
+                sidebarTab === 'content'
+                  ? 'border-zinc-900 text-zinc-900 bg-[#F7F6F2]'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-800'
+              }`}
+            >
+              ٢. المنتجات والعروض
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidebarTab('design')}
+              className={`py-3 font-semibold border-b-2 transition-colors cursor-pointer ${
+                sidebarTab === 'design'
+                  ? 'border-zinc-900 text-zinc-900 bg-[#F7F6F2]'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-800'
+              }`}
+            >
+              ٣. المظهر والأقسام
+            </button>
+          </div>
+
+          {/* Tab Contents */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* ===============================================================
+                TAB 1: PROMPT, PAGE SIMPLICITY MODE & PRESETS
+               =============================================================== */}
+            {sidebarTab === 'prompt' && (
+              <div className="space-y-5">
+                <div className="p-4 bg-white border border-[#DFDDD6] rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-zinc-900">
+                      صف مشروعك ومنتجاتك لبناء الموقع
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowKeyField(!showKeyField)}
+                      className="text-[11px] text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
+                    >
+                      {geminiKey ? 'مفتاح Gemini متصل' : 'ربط Gemini API'}
+                    </button>
+                  </div>
+
+                  {showKeyField && (
+                    <div className="p-2.5 bg-[#FAF9F6] border border-[#D8D5CD] rounded space-y-1">
+                      <label className="text-[10px] font-medium text-zinc-600 block">
+                        مفتاح Gemini API (اختياري):
+                      </label>
+                      <input
+                        type="password"
+                        value={geminiKey}
+                        onChange={(e) => handleSaveKey(e.target.value)}
+                        placeholder="AIzaSy..."
+                        className="w-full bg-white border border-[#D8D5CD] rounded px-2.5 py-1 text-xs font-mono"
+                      />
+                    </div>
+                  )}
+
+                  <textarea
+                    rows="3"
+                    value={promptInput}
+                    onChange={(e) => setPromptInput(e.target.value)}
+                    placeholder="مثال: براند عطور باسم سكون بأسعار تبدأ من 350 ج.م وشحن مجاني..."
+                    className="w-full bg-[#FAF9F6] border border-[#D8D5CD] rounded p-3 text-xs text-zinc-900 leading-relaxed placeholder-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors resize-none"
+                  />
+
+                  {genError && <p className="text-[11px] text-amber-800">{genError}</p>}
+
+                  <button
+                    type="button"
+                    disabled={isGenerating}
+                    onClick={() => handleGenerate()}
+                    className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
+                  >
+                    {isGenerating ? 'جاري بناء الموقع...' : 'توليد وتحديث الموقع الآن'}
+                  </button>
+                </div>
+
+                {/* One-Click Page Simplicity Mode Card */}
+                <div className="p-4 bg-white border border-[#DFDDD6] rounded-lg space-y-2.5">
+                  <div>
+                    <span className="text-xs font-bold text-zinc-900 block">
+                      نمط حجم وبساطة الموقع (بضغطة واحدة)
+                    </span>
+                    <p className="text-[11px] text-zinc-500">
+                      اختر عدد الأقسام المعروضة لتبسيط التجربة على عملائك
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPagePreset('single')}
+                      className={`p-2 rounded border text-center transition-all cursor-pointer ${
+                        activePageMode === 'single'
+                          ? 'bg-zinc-900 text-white border-zinc-900 font-bold'
+                          : 'bg-[#FAF9F6] text-zinc-700 border-[#D8D5CD] hover:border-zinc-500'
+                      }`}
+                    >
+                      <div>منتج واحد</div>
+                      <div className="text-[9px] opacity-75 mt-0.5">٣ أقسام مركزة</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPagePreset('focused')}
+                      className={`p-2 rounded border text-center transition-all cursor-pointer ${
+                        activePageMode === 'focused'
+                          ? 'bg-zinc-900 text-white border-zinc-900 font-bold'
+                          : 'bg-[#FAF9F6] text-zinc-700 border-[#D8D5CD] hover:border-zinc-500'
+                      }`}
+                    >
+                      <div>متجر مختصر</div>
+                      <div className="text-[9px] opacity-75 mt-0.5">٤ أقسام أساسية</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPagePreset('full')}
+                      className={`p-2 rounded border text-center transition-all cursor-pointer ${
+                        activePageMode === 'full'
+                          ? 'bg-zinc-900 text-white border-zinc-900 font-bold'
+                          : 'bg-[#FAF9F6] text-zinc-700 border-[#D8D5CD] hover:border-zinc-500'
+                      }`}
+                    >
+                      <div>موقع شامل</div>
+                      <div className="text-[9px] opacity-75 mt-0.5">جميع الـ ٩ أقسام</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Curated Industry Presets */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-zinc-800 block">
+                    أو اختر نموذجاً جاهزاً للبدء السريع:
+                  </span>
+                  <div className="space-y-1.5">
+                    {PRESET_PROMPTS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectPreset(preset)}
+                        className="w-full text-right p-2.5 rounded bg-white hover:bg-[#ECEAE3] border border-[#E5E2DC] transition-colors cursor-pointer block"
+                      >
+                        <div className="text-xs font-bold text-zinc-800">{preset.title}</div>
+                        <div className="text-[11px] text-zinc-500 truncate mt-0.5">{preset.prompt}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ===============================================================
+                TAB 2: ACCORDION-ORGANIZED PRODUCTS, BUNDLES & CONTENT
+               =============================================================== */}
+            {sidebarTab === 'content' && (
+              <div className="space-y-2.5">
+                {/* Accordion 1: Basic Brand & Hero Info */}
+                <div className="bg-white border border-[#DFDDD6] rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenContentPanel(openContentPanel === 'basic' ? '' : 'basic')
+                    }
+                    className="w-full px-4 py-3 flex items-center justify-between text-right hover:bg-zinc-50 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-zinc-900">
+                        ١. اسم البراند والصورة الرئيسية
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        العنوان الرئيسي، شريط الإعلان، والصورة
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      {openContentPanel === 'basic' ? '−' : '+'}
+                    </span>
+                  </button>
+
+                  {openContentPanel === 'basic' && (
+                    <div className="p-4 pt-2 border-t border-zinc-100 space-y-3">
+                      <div>
+                        <span className="text-[11px] text-zinc-500 block mb-1">اسم العلامة التجارية</span>
+                        <input
+                          type="text"
+                          value={pageData.brandName || ''}
+                          onChange={(e) => handleUpdateField('brandName', e.target.value)}
+                          className="w-full bg-[#FAF9F6] border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs text-zinc-900"
+                        />
+                      </div>
+
+                      <div>
+                        <span className="text-[11px] text-zinc-500 block mb-1">العنوان الرئيسي (Headline)</span>
+                        <textarea
+                          rows="2"
+                          value={pageData.headline || ''}
+                          onChange={(e) => handleUpdateField('headline', e.target.value)}
+                          className="w-full bg-[#FAF9F6] border border-[#D8D5CD] rounded p-2 text-xs text-zinc-900"
+                        />
+                      </div>
+
+                      <div>
+                        <span className="text-[11px] text-zinc-500 block mb-1">شريط الإعلان العلوي</span>
+                        <input
+                          type="text"
+                          value={pageData.announcement || ''}
+                          onChange={(e) => handleUpdateField('announcement', e.target.value)}
+                          className="w-full bg-[#FAF9F6] border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs text-zinc-900"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[11px] text-zinc-600">الصورة الرئيسية للموقع</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openImagePicker({
+                              title: 'تغيير الصورة الرئيسية للموقع',
+                              currentUrl: pageData.heroImage,
+                              onSelect: (url) => handleUpdateField('heroImage', url),
+                            })
+                          }
+                          className="px-3 py-1.5 bg-zinc-900 text-white text-[11px] font-medium rounded cursor-pointer"
+                        >
+                          رفع أو اختيار صورة
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Accordion 2: Products & Catalog */}
+                <div className="bg-white border border-[#DFDDD6] rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenContentPanel(openContentPanel === 'products' ? '' : 'products')
+                    }
+                    className="w-full px-4 py-3 flex items-center justify-between text-right hover:bg-zinc-50 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-zinc-900">
+                        ٢. قائمة المنتجات والخدمات ({products.length})
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        تعديل الأسعار، الصور، وإضافة منتجات جديدة
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      {openContentPanel === 'products' ? '−' : '+'}
+                    </span>
+                  </button>
+
+                  {openContentPanel === 'products' && (
+                    <div className="p-4 pt-2 border-t border-zinc-100 space-y-3">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={addNewProductItem}
+                          className="px-2.5 py-1 bg-zinc-900 text-white rounded text-[11px] font-semibold cursor-pointer"
+                        >
+                          + إضافة منتج جديد
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {products.map((prod, idx) => (
+                          <div
+                            key={prod.id}
+                            className="p-3 bg-[#FAF9F6] border border-[#E5E3DC] rounded space-y-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={prod.image}
+                                alt={prod.name}
+                                className="w-10 h-10 rounded object-cover border border-zinc-200 shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <input
+                                  type="text"
+                                  value={prod.name}
+                                  onChange={(e) => updateProductItem(idx, 'name', e.target.value)}
+                                  className="w-full text-xs font-bold text-zinc-900 bg-transparent border-b border-transparent focus:border-zinc-400 focus:outline-none"
+                                />
+                                <div className="flex items-center gap-2 mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openImagePicker({
+                                        title: `تغيير صورة: ${prod.name}`,
+                                        currentUrl: prod.image,
+                                        onSelect: (url) => updateProductItem(idx, 'image', url),
+                                      })
+                                    }
+                                    className="text-[10px] text-zinc-600 underline cursor-pointer"
+                                  >
+                                    تغيير الصورة
+                                  </button>
+                                  {products.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteProductItem(prod.id)}
+                                      className="text-[10px] text-red-700 underline cursor-pointer"
+                                    >
+                                      حذف
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <span className="text-[10px] text-zinc-400 block">السعر</span>
+                                <input
+                                  type="number"
+                                  value={prod.price}
+                                  onChange={(e) =>
+                                    updateProductItem(idx, 'price', Number(e.target.value) || 0)
+                                  }
+                                  className="w-full bg-white border border-zinc-200 rounded px-2 py-1 text-xs"
+                                />
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-zinc-400 block">التصنيف</span>
+                                <input
+                                  type="text"
+                                  value={prod.category || ''}
+                                  onChange={(e) => updateProductItem(idx, 'category', e.target.value)}
+                                  className="w-full bg-white border border-zinc-200 rounded px-2 py-1 text-xs"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Accordion 3: EasyOrders Bundles & Variants */}
+                <div className="bg-white border border-[#DFDDD6] rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenContentPanel(openContentPanel === 'bundles' ? '' : 'bundles')
+                    }
+                    className="w-full px-4 py-3 flex items-center justify-between text-right hover:bg-zinc-50 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-zinc-900">
+                        ٣. عروض التوفير والكميات (EasyOrders)
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        عرض قطعة / قطعتين / ٣ قطع ومواصفات كل قطعة
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      {openContentPanel === 'bundles' ? '−' : '+'}
+                    </span>
+                  </button>
+
+                  {openContentPanel === 'bundles' && (
+                    <div className="p-4 pt-2 border-t border-zinc-100 space-y-3">
+                      <div className="flex items-center justify-between text-xs pb-1">
+                        <span className="text-zinc-700 font-medium">تفعيل عروض الكميات في الفورم</span>
+                        <input
+                          type="checkbox"
+                          checked={currentEasyOrder.enableBundleSelector ?? true}
+                          onChange={(e) =>
+                            handleUpdateEasyOrder('enableBundleSelector', e.target.checked)
+                          }
+                          className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                        />
+                      </div>
+
+                      {(currentEasyOrder.bundleOffers || []).map((offer, idx) => (
+                        <div
+                          key={offer.id || idx}
+                          className="p-2.5 bg-[#FAF9F6] border border-[#E5E3DC] rounded space-y-2"
+                        >
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-[10px] text-zinc-400 block">
+                                اسم العرض ({offer.qty} قطع)
+                              </span>
+                              <input
+                                type="text"
+                                value={offer.title}
+                                onChange={(e) => handleUpdateBundleOffer(idx, 'title', e.target.value)}
+                                className="w-full bg-white border border-zinc-200 rounded px-2 py-1 text-xs font-semibold"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-zinc-400 block">سعر العرض الإجمالي</span>
+                              <input
+                                type="number"
+                                value={offer.price}
+                                onChange={(e) =>
+                                  handleUpdateBundleOffer(idx, 'price', Number(e.target.value) || 0)
+                                }
+                                className="w-full bg-white border border-zinc-200 rounded px-2 py-1 text-xs font-bold"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-zinc-600">شحن مجاني لهذا العرض</span>
+                            <input
+                              type="checkbox"
+                              checked={offer.freeShipping ?? false}
+                              onChange={(e) =>
+                                handleUpdateBundleOffer(idx, 'freeShipping', e.target.checked)
+                              }
+                              className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="p-2.5 bg-[#FAF9F6] border border-[#E5E3DC] rounded space-y-2">
+                        <div>
+                          <span className="text-[10px] text-zinc-500 block mb-1">
+                            عنوان خيارات القطعة (مثال: المقاس واللون)
+                          </span>
+                          <input
+                            type="text"
+                            value={currentEasyOrder.variantLabel || ''}
+                            onChange={(e) => handleUpdateEasyOrder('variantLabel', e.target.value)}
+                            className="w-full bg-white border border-zinc-200 rounded px-2 py-1 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-zinc-500 block mb-1">
+                            الخيارات المتاحة لكل قطعة (افصل بفاصلة ،)
+                          </span>
+                          <input
+                            type="text"
+                            value={(currentEasyOrder.variantOptions || []).join(' ، ')}
+                            onChange={(e) =>
+                              handleUpdateEasyOrder(
+                                'variantOptions',
+                                e.target.value
+                                  .split(/[,،]/)
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                              )
+                            }
+                            className="w-full bg-white border border-zinc-200 rounded px-2 py-1 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Accordion 4: Pricing Table Tiers */}
+                {pageData.pricingTiers && (
+                  <div className="bg-white border border-[#DFDDD6] rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenContentPanel(openContentPanel === 'pricing' ? '' : 'pricing')
+                      }
+                      className="w-full px-4 py-3 flex items-center justify-between text-right hover:bg-zinc-50 transition-colors cursor-pointer"
+                    >
+                      <div>
+                        <div className="text-xs font-bold text-zinc-900">
+                          ٤. باقات الأسعار المقارنة
+                        </div>
+                        <div className="text-[10px] text-zinc-500">
+                          تعديل جدول الباقات الثلاث في قسم الأسعار
+                        </div>
+                      </div>
+                      <span className="text-xs text-zinc-400 font-mono">
+                        {openContentPanel === 'pricing' ? '−' : '+'}
+                      </span>
+                    </button>
+
+                    {openContentPanel === 'pricing' && (
+                      <div className="p-4 pt-2 border-t border-zinc-100 space-y-2.5">
+                        {pageData.pricingTiers.map((tier, idx) => (
+                          <div
+                            key={tier.id || idx}
+                            className="p-2.5 bg-[#FAF9F6] border border-[#E5E3DC] rounded grid grid-cols-2 gap-2"
+                          >
+                            <div>
+                              <span className="text-[10px] text-zinc-400 block">اسم الباقة</span>
+                              <input
+                                type="text"
+                                value={tier.name}
+                                onChange={(e) => {
+                                  const copy = [...pageData.pricingTiers];
+                                  copy[idx] = { ...copy[idx], name: e.target.value };
+                                  handleUpdateField('pricingTiers', copy);
+                                }}
+                                className="w-full bg-white border border-zinc-200 rounded px-2 py-1 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-zinc-400 block">السعر المعروض</span>
+                              <input
+                                type="text"
+                                value={tier.price}
+                                onChange={(e) => {
+                                  const copy = [...pageData.pricingTiers];
+                                  copy[idx] = { ...copy[idx], price: e.target.value };
+                                  handleUpdateField('pricingTiers', copy);
+                                }}
+                                className="w-full bg-white border border-zinc-200 rounded px-2 py-1 text-xs font-bold"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ===============================================================
+                TAB 3: ACCORDION-ORGANIZED APPEARANCE, SECTIONS & COD SETTINGS
+               =============================================================== */}
+            {sidebarTab === 'design' && (
+              <div className="space-y-2.5">
+                {/* Accordion 1: Colors & Arabic Fonts */}
+                <div className="bg-white border border-[#DFDDD6] rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDesignPanel(
+                        openDesignPanel === 'colors_fonts' ? '' : 'colors_fonts'
+                      )
+                    }
+                    className="w-full px-4 py-3 flex items-center justify-between text-right hover:bg-zinc-50 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-zinc-900">
+                        ١. ألوان الهوية والخط العربي
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        الثيمات الجاهزة، تخصيص الألوان، و٦ خطوط عربية
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      {openDesignPanel === 'colors_fonts' ? '−' : '+'}
+                    </span>
+                  </button>
+
+                  {openDesignPanel === 'colors_fonts' && (
+                    <div className="p-4 pt-2 border-t border-zinc-100 space-y-4">
+                      {/* Themes */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-zinc-700">السمات الجاهزة:</span>
+                          {currentCustomColors.enabled && (
+                            <button
+                              type="button"
+                              onClick={handleDisableCustomColors}
+                              className="text-[10px] text-zinc-500 underline cursor-pointer"
+                            >
+                              إلغاء الألوان المخصصة
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {Object.keys(DESIGN_THEMES).map((key) => {
+                            const th = DESIGN_THEMES[key];
+                            const isSelected = activeThemeKey === key && !currentCustomColors.enabled;
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => {
+                                  setActiveThemeKey(key);
+                                  handleDisableCustomColors();
+                                }}
+                                className={`py-2 px-2.5 rounded text-xs font-medium border text-right transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'border-zinc-900 bg-zinc-900 text-white'
+                                    : 'border-[#D8D5CD] bg-[#FAF9F6] text-zinc-700 hover:bg-zinc-100'
+                                }`}
+                              >
+                                {th.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Brand Swatches + Color Pickers */}
+                      <div className="space-y-2 pt-2 border-t border-zinc-100">
+                        <span className="text-[11px] font-bold text-zinc-700 block">
+                          لوحات ألوان البراندات:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {BRAND_COLOR_PRESETS.map((preset) => (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleApplyBrandColorPreset(preset)}
+                              className="flex items-center gap-1.5 px-2 py-1 rounded border border-[#D8D5CD] hover:border-zinc-900 bg-[#FAF9F6] text-[10px] font-medium text-zinc-800 cursor-pointer"
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
+                                style={{ backgroundColor: preset.primary }}
+                              />
+                              <span>{preset.name}</span>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <label className="flex items-center justify-between p-1.5 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
+                            <span className="text-[10px] text-zinc-700 font-medium">لون الأزرار</span>
+                            <input
+                              type="color"
+                              value={currentCustomColors.primary}
+                              onChange={(e) => handleUpdateCustomColor('primary', e.target.value)}
+                              className="w-5 h-5 rounded border-0 cursor-pointer bg-transparent"
+                            />
+                          </label>
+                          <label className="flex items-center justify-between p-1.5 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
+                            <span className="text-[10px] text-zinc-700 font-medium">لون الخلفية</span>
+                            <input
+                              type="color"
+                              value={currentCustomColors.background}
+                              onChange={(e) => handleUpdateCustomColor('background', e.target.value)}
+                              className="w-5 h-5 rounded border-0 cursor-pointer bg-transparent"
+                            />
+                          </label>
+                          <label className="flex items-center justify-between p-1.5 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
+                            <span className="text-[10px] text-zinc-700 font-medium">لون البطاقات</span>
+                            <input
+                              type="color"
+                              value={currentCustomColors.surface}
+                              onChange={(e) => handleUpdateCustomColor('surface', e.target.value)}
+                              className="w-5 h-5 rounded border-0 cursor-pointer bg-transparent"
+                            />
+                          </label>
+                          <label className="flex items-center justify-between p-1.5 rounded bg-[#FAF9F6] border border-[#E5E3DC] cursor-pointer">
+                            <span className="text-[10px] text-zinc-700 font-medium">لون النصوص</span>
+                            <input
+                              type="color"
+                              value={currentCustomColors.text}
+                              onChange={(e) => handleUpdateCustomColor('text', e.target.value)}
+                              className="w-5 h-5 rounded border-0 cursor-pointer bg-transparent"
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Arabic Font Family */}
+                      <div className="space-y-2 pt-2 border-t border-zinc-100">
+                        <span className="text-[11px] font-bold text-zinc-700 block">
+                          الخط العربي للموقع:
+                        </span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {ARABIC_FONTS.map((font) => {
+                            const isCurrentFont =
+                              (currentTypography.fontFamily || 'Cairo') === font.id;
+                            return (
+                              <button
+                                key={font.id}
+                                type="button"
+                                onClick={() => handleUpdateTypographyField('fontFamily', font.id)}
+                                style={{ fontFamily: font.css }}
+                                className={`p-2 rounded border text-right transition-all cursor-pointer ${
+                                  isCurrentFont
+                                    ? 'bg-zinc-900 text-white border-zinc-900'
+                                    : 'bg-[#FAF9F6] text-zinc-800 border-[#D8D5CD] hover:border-zinc-500'
+                                }`}
+                              >
+                                <div className="text-[11px] font-bold">{font.name}</div>
+                                <div
+                                  className={`text-[9px] ${
+                                    isCurrentFont ? 'text-zinc-300' : 'text-zinc-500'
+                                  }`}
+                                >
+                                  {font.desc}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Accordion 2: Section Order, Visibility & Layout Variants */}
+                <div className="bg-white border border-[#DFDDD6] rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDesignPanel(openDesignPanel === 'sections' ? '' : 'sections')
+                    }
+                    className="w-full px-4 py-3 flex items-center justify-between text-right hover:bg-zinc-50 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-zinc-900">
+                        ٢. ترتيب وإظهار أقسام الصفحة
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        تبسيط الصفحة، إخفاء الأقسام، أو تغيير تخطيط كل قسم
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      {openDesignPanel === 'sections' ? '−' : '+'}
+                    </span>
+                  </button>
+
+                  {openDesignPanel === 'sections' && (
+                    <div className="p-4 pt-2 border-t border-zinc-100 space-y-3">
+                      {/* Quick Page Simplicity Bar inside Sections Accordion */}
+                      <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => handleApplyPagePreset('single')}
+                          className={`py-1.5 px-2 rounded border font-semibold cursor-pointer ${
+                            activePageMode === 'single'
+                              ? 'bg-zinc-900 text-white border-zinc-900'
+                              : 'bg-[#FAF9F6] text-zinc-700 border-[#D8D5CD]'
+                          }`}
+                        >
+                          منتج واحد (٣)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyPagePreset('focused')}
+                          className={`py-1.5 px-2 rounded border font-semibold cursor-pointer ${
+                            activePageMode === 'focused'
+                              ? 'bg-zinc-900 text-white border-zinc-900'
+                              : 'bg-[#FAF9F6] text-zinc-700 border-[#D8D5CD]'
+                          }`}
+                        >
+                          متجر مختصر (٤)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyPagePreset('full')}
+                          className={`py-1.5 px-2 rounded border font-semibold cursor-pointer ${
+                            activePageMode === 'full'
+                              ? 'bg-zinc-900 text-white border-zinc-900'
+                              : 'bg-[#FAF9F6] text-zinc-700 border-[#D8D5CD]'
+                          }`}
+                        >
+                          موقع شامل (٩)
+                        </button>
+                      </div>
+
+                      <div className="p-2 bg-[#FAF9F6] rounded border border-[#E5E3DC] flex items-center justify-between text-xs">
+                        <span className="font-medium text-zinc-700">شريط الإعلان العلوي</span>
+                        <input
+                          type="checkbox"
+                          checked={pageData.sections?.announcement ?? true}
+                          onChange={() => handleToggleSection('announcement')}
+                          className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {currentSectionOrder.map((secKey, idx) => {
+                          const isVisible = pageData.sections?.[secKey] ?? true;
+                          const layoutOptions = SECTION_LAYOUT_OPTIONS[secKey];
+                          const activeLayout = currentLayouts[secKey];
+
+                          return (
+                            <div
+                              key={secKey}
+                              draggable
+                              onDragStart={() => handleDragStart(secKey)}
+                              onDragOver={(e) => handleDragOver(e, secKey)}
+                              onDrop={() => handleDrop(secKey)}
+                              onDragEnd={() => {
+                                setDraggedSection(null);
+                                setDragOverSection(null);
+                              }}
+                              className={`p-2.5 rounded border transition-all ${
+                                isVisible
+                                  ? 'bg-[#FAF9F6] border-[#DFDDD6]'
+                                  : 'bg-zinc-100/60 border-zinc-200 opacity-55'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-zinc-800 truncate">
+                                  {idx + 1}. {SECTION_LABELS[secKey] || secKey}
+                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    onClick={() => handleMoveSection(secKey, 'up')}
+                                    className="w-5 h-5 rounded bg-white border border-zinc-200 disabled:opacity-30 text-zinc-800 text-[10px] flex items-center justify-center cursor-pointer"
+                                  >
+                                    ↑
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={idx === currentSectionOrder.length - 1}
+                                    onClick={() => handleMoveSection(secKey, 'down')}
+                                    className="w-5 h-5 rounded bg-white border border-zinc-200 disabled:opacity-30 text-zinc-800 text-[10px] flex items-center justify-center cursor-pointer"
+                                  >
+                                    ↓
+                                  </button>
+                                  <input
+                                    type="checkbox"
+                                    checked={isVisible}
+                                    onChange={() => handleToggleSection(secKey)}
+                                    className="accent-zinc-900 w-3.5 h-3.5 mr-1 cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+
+                              {isVisible && layoutOptions && (
+                                <div className="mt-2 pt-1.5 border-t border-zinc-200/60 flex flex-wrap gap-1">
+                                  {layoutOptions.map((opt) => {
+                                    const isChosen = activeLayout === opt.id;
+                                    return (
+                                      <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={() => handleChangeSectionLayout(secKey, opt.id)}
+                                        className={`text-[10px] px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                          isChosen
+                                            ? 'bg-zinc-900 text-white font-semibold'
+                                            : 'bg-white text-zinc-700 border border-zinc-200'
+                                        }`}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Accordion 3: Font Sizes & Typography Scale */}
+                <div className="bg-white border border-[#DFDDD6] rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDesignPanel(openDesignPanel === 'typography' ? '' : 'typography')
+                    }
+                    className="w-full px-4 py-3 flex items-center justify-between text-right hover:bg-zinc-50 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-zinc-900">
+                        ٣. أحجام الخطوط والنصوص
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        تكبير أو تصغير العناوين، الفقرات، والأسعار
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      {openDesignPanel === 'typography' ? '−' : '+'}
+                    </span>
+                  </button>
+
+                  {openDesignPanel === 'typography' && (
+                    <div className="p-4 pt-2 border-t border-zinc-100 space-y-3">
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {TYPOGRAPHY_PRESETS.map((preset) => {
+                          const isChosen = currentTypography.scale === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleApplyTypographyPreset(preset.values)}
+                              className={`py-1.5 px-2 rounded text-[11px] font-semibold border transition-all cursor-pointer ${
+                                isChosen
+                                  ? 'bg-zinc-900 text-white border-zinc-900'
+                                  : 'bg-[#FAF9F6] text-zinc-700 border-[#D8D5CD]'
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="space-y-2.5 pt-1">
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span className="text-zinc-700">العنوان الرئيسي</span>
+                            <span className="font-mono font-bold">{currentTypography.heroSize}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="22"
+                            max="54"
+                            value={currentTypography.heroSize}
+                            onChange={(e) => handleUpdateTypographyField('heroSize', e.target.value)}
+                            className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span className="text-zinc-700">عناوين الأقسام</span>
+                            <span className="font-mono font-bold">{currentTypography.sectionSize}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="16"
+                            max="34"
+                            value={currentTypography.sectionSize}
+                            onChange={(e) => handleUpdateTypographyField('sectionSize', e.target.value)}
+                            className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span className="text-zinc-700">النصوص والوصف</span>
+                            <span className="font-mono font-bold">{currentTypography.bodySize}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="11"
+                            max="19"
+                            value={currentTypography.bodySize}
+                            onChange={(e) => handleUpdateTypographyField('bodySize', e.target.value)}
+                            className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span className="text-zinc-700">حجم الأسعار</span>
+                            <span className="font-mono font-bold">{currentTypography.priceSize}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="14"
+                            max="30"
+                            value={currentTypography.priceSize}
+                            onChange={(e) => handleUpdateTypographyField('priceSize', e.target.value)}
+                            className="w-full accent-zinc-900 cursor-pointer h-1.5"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Accordion 4: EasyOrders COD & WhatsApp Settings */}
+                <div className="bg-white border border-[#DFDDD6] rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenDesignPanel(openDesignPanel === 'cod_settings' ? '' : 'cod_settings')
+                    }
+                    className="w-full px-4 py-3 flex items-center justify-between text-right hover:bg-zinc-50 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-zinc-900">
+                        ٤. إعدادات الشحن والواتساب (EasyOrders)
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        رقم الواتساب، شريط الشراء السفلي، ومضاعفات المبيعات
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      {openDesignPanel === 'cod_settings' ? '−' : '+'}
+                    </span>
+                  </button>
+
+                  {openDesignPanel === 'cod_settings' && (
+                    <div className="p-4 pt-2 border-t border-zinc-100 space-y-3 text-xs">
+                      <div className="space-y-2 p-2.5 bg-[#FAF9F6] rounded border border-[#E5E3DC]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-700">عروض التوفير (١ / ٢ / ٣ قطع)</span>
+                          <input
+                            type="checkbox"
+                            checked={currentEasyOrder.enableBundleSelector ?? true}
+                            onChange={(e) =>
+                              handleUpdateEasyOrder('enableBundleSelector', e.target.checked)
+                            }
+                            className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-700">عرض الإضافة السريع (Order Bump)</span>
+                          <input
+                            type="checkbox"
+                            checked={currentEasyOrder.enableOrderBump ?? true}
+                            onChange={(e) =>
+                              handleUpdateEasyOrder('enableOrderBump', e.target.checked)
+                            }
+                            className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-700">مؤشر ندرة المخزون المتبقي</span>
+                          <input
+                            type="checkbox"
+                            checked={currentEasyOrder.enableStockScarcity ?? true}
+                            onChange={(e) =>
+                              handleUpdateEasyOrder('enableStockScarcity', e.target.checked)
+                            }
+                            className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-700">شريط الشراء السفلي الثابت</span>
+                          <input
+                            type="checkbox"
+                            checked={currentEasyOrder.enableStickyBar ?? true}
+                            onChange={(e) =>
+                              handleUpdateEasyOrder('enableStickyBar', e.target.checked)
+                            }
+                            className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-[11px] text-zinc-500 block mb-1">
+                          رقم واتساب لاستقبال الطلبات (بالكود الدولي)
+                        </span>
+                        <input
+                          type="text"
+                          value={pageData.whatsappPhone || ''}
+                          onChange={(e) => handleUpdateField('whatsappPhone', e.target.value)}
+                          placeholder="201012345678"
+                          className="w-full bg-[#FAF9F6] border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs font-mono"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-[11px] text-zinc-500 block mb-1">العملة</span>
+                          <input
+                            type="text"
+                            value={pageData.currency || 'ج.م'}
+                            onChange={(e) => handleUpdateField('currency', e.target.value)}
+                            className="w-full bg-[#FAF9F6] border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-zinc-500 block mb-1">القطع المتبقية</span>
+                          <input
+                            type="number"
+                            value={currentEasyOrder.stockRemaining ?? 9}
+                            onChange={(e) =>
+                              handleUpdateEasyOrder(
+                                'stockRemaining',
+                                Math.max(1, Number(e.target.value) || 9)
+                              )
+                            }
+                            className="w-full bg-[#FAF9F6] border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Left Area: Main Scrollable Preview Canvas (No Extra Cluttered Sub-Header!) */}
         <main className="flex-1 overflow-y-auto p-3 md:p-6">
           <CanvasFrame
             pageData={pageData}
