@@ -5,6 +5,7 @@ import ImageEditorModal from './components/ImageEditorModal';
 import ProjectsModal from './components/ProjectsModal';
 import PublishModal from './components/PublishModal';
 import PublishedSiteView from './components/PublishedSiteView';
+import OrdersModal from './components/OrdersModal';
 import {
   generatePageData,
   generateWithGeminiAI,
@@ -19,6 +20,7 @@ import {
   ARABIC_FONTS,
   DEFAULT_CUSTOM_COLORS,
   BRAND_COLOR_PRESETS,
+  buildDefaultEasyOrderConfig,
 } from './engine/templates';
 import {
   loadProjectsWorkspace,
@@ -30,6 +32,9 @@ import {
   publishProjectToServer,
   getLiveShareUrl,
   decodeShareableToken,
+  loadOrdersInbox,
+  saveOrdersInbox,
+  addOrderToInbox,
 } from './engine/projects';
 
 const SECTION_LABELS = {
@@ -101,6 +106,10 @@ export default function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [showOrdersModal, setShowOrdersModal] = useState(false);
+
+  // EasyOrders COD Inbox State
+  const [orders, setOrders] = useState(() => loadOrdersInbox());
 
   // Drag and Drop state for section reordering
   const [draggedSection, setDraggedSection] = useState(null);
@@ -475,6 +484,43 @@ export default function App() {
     });
   };
 
+  // EasyOrders COD Configuration & Inbox Handlers
+  const currentEasyOrder = {
+    ...buildDefaultEasyOrderConfig(pageData.niche || 'perfume', products[0]?.price || 350),
+    ...(pageData.easyOrder || {}),
+  };
+
+  const handleUpdateEasyOrder = (field, value) => {
+    handleUpdateField('easyOrder', {
+      ...currentEasyOrder,
+      [field]: value,
+    });
+  };
+
+  const handleUpdateBundleOffer = (idx, field, value) => {
+    const offers = [...(currentEasyOrder.bundleOffers || [])];
+    offers[idx] = { ...offers[idx], [field]: value };
+    handleUpdateEasyOrder('bundleOffers', offers);
+  };
+
+  const handleSubmitOrder = (orderPayload) => {
+    const { order, list } = addOrderToInbox(orderPayload);
+    setOrders(list);
+    return order;
+  };
+
+  const handleUpdateOrderStatus = (orderId, nextStatus) => {
+    const updated = orders.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o));
+    setOrders(updated);
+    saveOrdersInbox(updated);
+  };
+
+  const handleDeleteOrder = (orderId) => {
+    const updated = orders.filter((o) => o.id !== orderId);
+    setOrders(updated);
+    saveOrdersInbox(updated);
+  };
+
   // If visiting a serverless shared link (?s=...) or /p/:slug, render PublishedSiteView
   if (sharedSite || liveRouteSlug) {
     return (
@@ -515,6 +561,7 @@ export default function App() {
           onChangeSectionLayout={handleChangeSectionLayout}
           onToggleSection={handleToggleSection}
           onOpenImagePicker={openImagePicker}
+          onSubmitOrder={handleSubmitOrder}
           activeThemeKey={activeThemeKey}
           deviceView="desktop"
           isFullscreen={true}
@@ -524,6 +571,7 @@ export default function App() {
   }
 
   const liveShareUrl = getLiveShareUrl(activeProject?.slug || 'site');
+  const newOrdersCount = orders.filter((o) => o.status === 'new').length;
 
   return (
     <div className="min-h-screen bg-[#ECEAE4] text-zinc-900 flex flex-col lg:flex-row font-sans">
@@ -536,15 +584,26 @@ export default function App() {
               <h1 className="text-base font-bold tracking-tight text-zinc-900">مِعمار الصفحات</h1>
               <p className="text-[11px] text-zinc-500">محرر تخطيطات صفحات الهبوط والكتالوج</p>
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5">
               {history.length > 0 && (
                 <button
                   onClick={handleUndo}
-                  className="text-[11px] text-zinc-600 hover:text-zinc-900 underline cursor-pointer"
+                  className="text-[11px] text-zinc-600 hover:text-zinc-900 underline cursor-pointer ml-1"
                 >
                   تراجع
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setShowOrdersModal(true)}
+                className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                title="صندوق الطلبات وتصدير شيت الشحن (EasyOrders Inbox)"
+              >
+                <span>الطلبات ({orders.length})</span>
+                {newOrdersCount > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                )}
+              </button>
               <button
                 type="button"
                 onClick={() => setShowProjectsModal(true)}
@@ -880,6 +939,102 @@ export default function App() {
                   ))}
                 </div>
               )}
+
+              {/* EasyOrders Tiered Bundles & Variants Editor */}
+              <div className="space-y-3 pt-2 border-t border-[#E5E3DC]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-bold text-zinc-900">
+                      عروض التوفير والكميات (نظام EasyOrders)
+                    </h3>
+                    <p className="text-[10px] text-zinc-500">
+                      تظهر داخل فورم الشراء السريع لمضاعفة قيمة السلة
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={currentEasyOrder.enableBundleSelector ?? true}
+                    onChange={(e) => handleUpdateEasyOrder('enableBundleSelector', e.target.checked)}
+                    className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                    title="تفعيل أو إيقاف عروض الكميات"
+                  />
+                </div>
+
+                {(currentEasyOrder.bundleOffers || []).map((offer, idx) => (
+                  <div
+                    key={offer.id || idx}
+                    className="p-2.5 bg-white border border-[#DFDDD6] rounded space-y-2"
+                  >
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block">اسم العرض ({offer.qty} قطع)</span>
+                        <input
+                          type="text"
+                          value={offer.title}
+                          onChange={(e) => handleUpdateBundleOffer(idx, 'title', e.target.value)}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-zinc-400 block">سعر العرض الإجمالي</span>
+                        <input
+                          type="number"
+                          value={offer.price}
+                          onChange={(e) =>
+                            handleUpdateBundleOffer(idx, 'price', Number(e.target.value) || 0)
+                          }
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs font-bold"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] pt-1">
+                      <span className="text-zinc-600">شحن مجاني لهذا العرض</span>
+                      <input
+                        type="checkbox"
+                        checked={offer.freeShipping ?? false}
+                        onChange={(e) =>
+                          handleUpdateBundleOffer(idx, 'freeShipping', e.target.checked)
+                        }
+                        className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Variants & Order Bump Customization */}
+                <div className="p-2.5 bg-white border border-[#DFDDD6] rounded space-y-2">
+                  <div>
+                    <span className="text-[10px] text-zinc-500 block mb-1">
+                      عنوان خيارات القطعة (مثال: المقاس واللون / الحجم والتركيز)
+                    </span>
+                    <input
+                      type="text"
+                      value={currentEasyOrder.variantLabel || ''}
+                      onChange={(e) => handleUpdateEasyOrder('variantLabel', e.target.value)}
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-zinc-500 block mb-1">
+                      الخيارات المتاحة لكل قطعة (افصل بينها بفاصلة ،)
+                    </span>
+                    <input
+                      type="text"
+                      value={(currentEasyOrder.variantOptions || []).join(' ، ')}
+                      onChange={(e) =>
+                        handleUpdateEasyOrder(
+                          'variantOptions',
+                          e.target.value
+                            .split(/[,،]/)
+                            .map((s) => s.trim())
+                            .filter(Boolean)
+                        )
+                      }
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1282,11 +1437,60 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Order & WhatsApp Settings */}
+              {/* Order, EasyOrders COD & WhatsApp Settings */}
               <div className="space-y-3 pt-4 border-t border-[#E5E3DC]">
-                <label className="text-xs font-bold text-zinc-800 block">
-                  إعدادات سلة الطلب والواتساب
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-zinc-800 block">
+                    إعدادات الدفع عند الاستلام (EasyOrders COD)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowOrdersModal(true)}
+                    className="text-[11px] font-semibold text-zinc-900 underline cursor-pointer"
+                  >
+                    فتح سجل الطلبات ({orders.length})
+                  </button>
+                </div>
+
+                {/* Conversion Boosters Toggles */}
+                <div className="p-3 bg-white rounded border border-[#DFDDD6] space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-700 font-medium">عروض التوفير (١ قطعة / ٢ قطعة / ٣ قطع)</span>
+                    <input
+                      type="checkbox"
+                      checked={currentEasyOrder.enableBundleSelector ?? true}
+                      onChange={(e) => handleUpdateEasyOrder('enableBundleSelector', e.target.checked)}
+                      className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-700 font-medium">عرض الترقية السريع داخل السلة (Order Bump)</span>
+                    <input
+                      type="checkbox"
+                      checked={currentEasyOrder.enableOrderBump ?? true}
+                      onChange={(e) => handleUpdateEasyOrder('enableOrderBump', e.target.checked)}
+                      className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-700 font-medium">شريط ندرة المخزون المتبقي</span>
+                    <input
+                      type="checkbox"
+                      checked={currentEasyOrder.enableStockScarcity ?? true}
+                      onChange={(e) => handleUpdateEasyOrder('enableStockScarcity', e.target.checked)}
+                      className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-700 font-medium">شريط الشراء السفلي الثابت (Sticky Bar)</span>
+                    <input
+                      type="checkbox"
+                      checked={currentEasyOrder.enableStickyBar ?? true}
+                      onChange={(e) => handleUpdateEasyOrder('enableStickyBar', e.target.checked)}
+                      className="accent-zinc-900 w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </div>
+                </div>
 
                 <div>
                   <span className="text-[11px] text-zinc-500 block mb-1">
@@ -1312,11 +1516,13 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <span className="text-[11px] text-zinc-500 block mb-1">رسوم التوصيل</span>
+                    <span className="text-[11px] text-zinc-500 block mb-1">عدد القطع المتبقية</span>
                     <input
                       type="number"
-                      value={pageData.deliveryFee ?? 0}
-                      onChange={(e) => handleUpdateField('deliveryFee', Number(e.target.value) || 0)}
+                      value={currentEasyOrder.stockRemaining ?? 9}
+                      onChange={(e) =>
+                        handleUpdateEasyOrder('stockRemaining', Math.max(1, Number(e.target.value) || 9))
+                      }
                       className="w-full bg-white border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs"
                     />
                   </div>
@@ -1418,6 +1624,19 @@ export default function App() {
           <div className="flex items-center gap-4">
             <button
               type="button"
+              onClick={() => setShowOrdersModal(true)}
+              className="text-zinc-900 font-bold hover:underline cursor-pointer flex items-center gap-1.5"
+            >
+              <span>صندوق الطلبات ({orders.length})</span>
+              {newOrdersCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px]">
+                  {newOrdersCount} جديد
+                </span>
+              )}
+            </button>
+            <span className="text-zinc-300">|</span>
+            <button
+              type="button"
               onClick={() => setShowProjectsModal(true)}
               className="text-zinc-600 hover:text-zinc-900 font-medium cursor-pointer"
             >
@@ -1442,6 +1661,7 @@ export default function App() {
             onChangeSectionLayout={handleChangeSectionLayout}
             onToggleSection={handleToggleSection}
             onOpenImagePicker={openImagePicker}
+            onSubmitOrder={handleSubmitOrder}
             activeThemeKey={activeThemeKey}
             deviceView={deviceView}
             isFullscreen={false}
@@ -1482,6 +1702,15 @@ export default function App() {
         project={activeProject}
         onPublish={handlePublishActiveProject}
         onUnpublish={handleUnpublishActiveProject}
+      />
+
+      {/* EasyOrders COD Inbox & Excel Export Modal */}
+      <OrdersModal
+        isOpen={showOrdersModal}
+        onClose={() => setShowOrdersModal(false)}
+        orders={orders}
+        onUpdateOrderStatus={handleUpdateOrderStatus}
+        onDeleteOrder={handleDeleteOrder}
       />
 
       {/* Code Export Modal */}

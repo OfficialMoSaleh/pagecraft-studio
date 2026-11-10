@@ -5,6 +5,7 @@ import {
   DEFAULT_SECTIONS,
   DEFAULT_TYPOGRAPHY,
   DEFAULT_CUSTOM_COLORS,
+  buildDefaultEasyOrderConfig,
 } from './templates';
 import { buildStandaloneHTML } from '../components/CodeExportModal';
 
@@ -51,6 +52,8 @@ export function suggestSlugFromBrand(brandName, fallbackIndex = 1) {
 
 export function normalizePageData(pageData) {
   if (!pageData) return generatePageData('دار عطور محلية باسم "أثر"', 'editorial');
+  const fallbackBasePrice = Number(pageData.products?.[0]?.price) || 340;
+  const defaultEasy = buildDefaultEasyOrderConfig('perfume', fallbackBasePrice);
   return {
     ...pageData,
     sectionOrder:
@@ -61,6 +64,19 @@ export function normalizePageData(pageData) {
     sections: { ...DEFAULT_SECTIONS, ...(pageData.sections || {}) },
     typography: { ...DEFAULT_TYPOGRAPHY, ...(pageData.typography || {}) },
     customColors: { ...DEFAULT_CUSTOM_COLORS, ...(pageData.customColors || {}) },
+    easyOrder: {
+      ...defaultEasy,
+      ...(pageData.easyOrder || {}),
+      orderBump: { ...defaultEasy.orderBump, ...(pageData.easyOrder?.orderBump || {}) },
+      shippingRates:
+        Array.isArray(pageData.easyOrder?.shippingRates) && pageData.easyOrder.shippingRates.length > 0
+          ? pageData.easyOrder.shippingRates
+          : defaultEasy.shippingRates,
+      bundleOffers:
+        Array.isArray(pageData.easyOrder?.bundleOffers) && pageData.easyOrder.bundleOffers.length > 0
+          ? pageData.easyOrder.bundleOffers
+          : defaultEasy.bundleOffers,
+    },
   };
 }
 
@@ -453,4 +469,142 @@ export async function resolvePublishedSite(slug) {
 
   return null;
 }
+
+const ORDERS_STORAGE_KEY = 'pagecraft_orders_v1';
+
+export function createSampleOrders() {
+  return [
+    {
+      id: 'ORD-1041',
+      projectName: 'أَثَر للعطور',
+      customerName: 'أحمد محمود الشافعي',
+      customerPhone: '01012345678',
+      governorate: 'القاهرة والجيزة',
+      address: 'مدينة نصر، شارع عباس العقاد، عمارة 14، الدور الثالث',
+      bundleTitle: 'عرض قطعتين (الأكثر طلباً)',
+      variantSelections: [
+        'عطر سَمَر — أخشاب الصندل والعنبر (50 مل)',
+        'عطر أَثَر — عود ملكي معتق (50 مل)',
+      ],
+      orderBumpIncluded: true,
+      orderBumpTitle: 'إضافة صندوق إهداء خشبي فاخر + عينات تجريبية',
+      shippingFee: 0,
+      discountAmount: 0,
+      totalAmount: 650,
+      currency: 'ج.م',
+      status: 'confirmed',
+      createdAt: new Date(Date.now() - 3600 * 1000 * 5).toISOString(),
+    },
+    {
+      id: 'ORD-1042',
+      projectName: 'مَحمصة قَاف',
+      customerName: 'سارة عبد الرحمن',
+      customerPhone: '01123456789',
+      governorate: 'الإسكندرية',
+      address: 'سموحة، شارع فوزي معاذ، برج السرايا',
+      bundleTitle: 'عرض قطعة واحدة (التجربة الأساسية)',
+      variantSelections: ['إثيوبي ييرغاشيف — مطحون تقطير (V60 / Chemex)'],
+      orderBumpIncluded: false,
+      orderBumpTitle: '',
+      shippingFee: 60,
+      discountAmount: 0,
+      totalAmount: 350,
+      currency: 'ج.م',
+      status: 'new',
+      createdAt: new Date(Date.now() - 3600 * 1000 * 1).toISOString(),
+    },
+  ];
+}
+
+export function loadOrdersInbox() {
+  try {
+    const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  const initial = createSampleOrders();
+  try {
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(initial));
+  } catch {
+    // ignore
+  }
+  return initial;
+}
+
+export function saveOrdersInbox(orders) {
+  try {
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+  } catch {
+    // ignore
+  }
+}
+
+export function addOrderToInbox(orderPayload) {
+  const current = loadOrdersInbox();
+  const nextOrder = {
+    id: 'ORD-' + Math.floor(1050 + Math.random() * 8900),
+    status: 'new',
+    createdAt: new Date().toISOString(),
+    ...orderPayload,
+  };
+  const updated = [nextOrder, ...current];
+  saveOrdersInbox(updated);
+  return { order: nextOrder, allOrders: updated, list: updated };
+}
+
+export function buildOrdersCsvContent(orders) {
+  const headers = [
+    'رقم الطلب',
+    'التاريخ',
+    'المشروع',
+    'اسم العميل',
+    'رقم الهاتف',
+    'المحافظة',
+    'العنوان بالتفصيل',
+    'العرض المختار',
+    'المواصفات / القطع',
+    'إضافة العرض الخاص',
+    'مصاريف الشحن',
+    'الإجمالي (COD)',
+    'الحالة',
+  ];
+
+  const statusAr = {
+    new: 'طلب جديد',
+    confirmed: 'تم التأكيد هاتفياً',
+    shipped: 'جاري الشحن',
+    delivered: 'تم التسليم',
+    cancelled: 'ملغي',
+  };
+
+  const rows = orders.map((o) => [
+    o.id,
+    new Date(o.createdAt).toLocaleString('ar-EG'),
+    o.projectName || '',
+    o.customerName || '',
+    o.customerPhone || '',
+    o.governorate || '',
+    o.address || '',
+    o.bundleTitle || '',
+    (o.variantSelections || []).join(' + '),
+    o.orderBumpIncluded ? 'نعم' : 'لا',
+    `${o.shippingFee || 0} ${o.currency || 'ج.م'}`,
+    `${o.totalAmount || 0} ${o.currency || 'ج.م'}`,
+    statusAr[o.status] || o.status,
+  ]);
+
+  const escapeCsv = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+  const csvLines = [
+    headers.map(escapeCsv).join(','),
+    ...rows.map((r) => r.map(escapeCsv).join(',')),
+  ];
+
+  // Prepend UTF-8 BOM so Microsoft Excel opens Arabic text cleanly
+  return '\uFEFF' + csvLines.join('\r\n');
+}
+
 

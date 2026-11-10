@@ -7,6 +7,7 @@ import {
   DEFAULT_TYPOGRAPHY,
   ARABIC_FONTS,
   DEFAULT_CUSTOM_COLORS,
+  buildDefaultEasyOrderConfig,
 } from '../engine/templates';
 
 const SECTION_NAMES_AR = {
@@ -28,6 +29,7 @@ export default function CanvasFrame({
   onChangeSectionLayout,
   onToggleSection,
   onOpenImagePicker,
+  onSubmitOrder,
   activeThemeKey,
   deviceView,
   isFullscreen,
@@ -80,7 +82,28 @@ export default function CanvasFrame({
   const [selectedTier, setSelectedTier] = useState(null);
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
-  // Customer Order Form State
+  // Customer Order Form & EasyOrders COD State
+  const easyOrder = {
+    ...buildDefaultEasyOrderConfig('perfume', Number(pageData.products?.[0]?.price) || 340),
+    ...(pageData.easyOrder || {}),
+  };
+  const bundleOffers = easyOrder.bundleOffers || [];
+  const shippingRates = easyOrder.shippingRates || [];
+  const variantOptions = easyOrder.variantOptions || ['الإصدار الأساسي'];
+
+  const [selectedBundleIdx, setSelectedBundleIdx] = useState(1); // Default to 2-piece Most Popular offer
+  const [pieceVariants, setPieceVariants] = useState([
+    variantOptions[0] || '',
+    variantOptions[1] || variantOptions[0] || '',
+    variantOptions[2] || variantOptions[0] || '',
+  ]);
+  const [selectedGovId, setSelectedGovId] = useState(shippingRates[0]?.id || 'cairo_giza');
+  const [includeOrderBump, setIncludeOrderBump] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoError, setPromoError] = useState('');
+  const [submittedReceipt, setSubmittedReceipt] = useState(null);
+
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
@@ -117,7 +140,35 @@ export default function CanvasFrame({
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.qty, 0);
   const cartSubtotal = cartItems.reduce((sum, item) => sum + item.lineTotal, 0);
-  const finalTotal = cartSubtotal + (cartSubtotal > 0 ? deliveryFee : 0);
+
+  // EasyOrders COD Calculation
+  const activeBundle = bundleOffers[selectedBundleIdx] || bundleOffers[0] || {
+    qty: 1,
+    title: 'عرض قطعة واحدة',
+    price: Number(pageData.products?.[0]?.price) || 340,
+    freeShipping: false,
+  };
+  const activeGov =
+    shippingRates.find((g) => g.id === selectedGovId) ||
+    shippingRates[0] || { name: 'القاهرة والجيزة', fee: deliveryFee || 50, days: 'خلال 48 ساعة' };
+
+  const baseOrderSubtotal =
+    cartSubtotal > 0
+      ? cartSubtotal
+      : easyOrder.enableBundleSelector !== false
+      ? Number(activeBundle.price) || 0
+      : Number(pageData.products?.[0]?.price) || 340;
+
+  const isFreeShipping =
+    easyOrder.enableBundleSelector !== false && cartSubtotal === 0 && Boolean(activeBundle.freeShipping);
+  const effectiveShippingFee = isFreeShipping ? 0 : Number(activeGov.fee ?? deliveryFee);
+  const bumpFee =
+    easyOrder.enableOrderBump !== false && includeOrderBump
+      ? Number(easyOrder.orderBump?.price) || 0
+      : 0;
+  const discountPercent = promoApplied ? Number(pageData.promoDiscountPercent) || 10 : 0;
+  const discountAmount = Math.round((baseOrderSubtotal * discountPercent) / 100);
+  const finalTotal = Math.max(0, baseOrderSubtotal - discountAmount + effectiveShippingFee + bumpFee);
 
   // Inline array update helpers
   const handleProductUpdate = (index, field, value) => {
@@ -187,35 +238,97 @@ export default function CanvasFrame({
     setOpenFaqIndex(faqs.length - 1);
   };
 
+  const handleApplyPromo = () => {
+    const targetCode = (pageData.promoCode || 'WELCOME10').trim().toUpperCase();
+    if (promoInput.trim().toUpperCase() === targetCode) {
+      setPromoApplied(true);
+      setPromoError('');
+    } else {
+      setPromoApplied(false);
+      setPromoError('كود الخصم غير صحيح، جرب: ' + targetCode);
+    }
+  };
+
+  const handlePieceVariantChange = (pieceIdx, val) => {
+    setPieceVariants((prev) => {
+      const next = [...prev];
+      next[pieceIdx] = val;
+      return next;
+    });
+  };
+
   const handleSendOrder = (e) => {
     e.preventDefault();
     const waPhone = pageData.whatsappPhone || '201000000000';
-    let message = `${pageData.whatsappMessage || 'مرحباً، أود تأكيد الطلب التالي:'}\n\n`;
+    const chosenQty = Number(activeBundle.qty) || 1;
+    const chosenVariants =
+      cartItems.length > 0
+        ? cartItems.map((item) => `${item.name} × ${item.qty}`)
+        : Array.from({ length: chosenQty }, (_, i) => pieceVariants[i] || variantOptions[0] || '');
+
+    const orderSummaryTitle =
+      cartItems.length > 0
+        ? `سلة منتجات مخصصة (${cartCount} قطع)`
+        : selectedTier
+        ? `${selectedTier.name} (${selectedTier.price})`
+        : activeBundle.title;
+
+    let message = `${pageData.whatsappMessage || 'مرحباً، أود تأكيد طلب دفع عند الاستلام (COD):'}\n\n`;
     message += `المشروع: ${pageData.brandName}\n`;
+    message += `العرض المختار: ${orderSummaryTitle}\n`;
 
-    if (selectedTier) {
-      message += `الباقة المختارة: ${selectedTier.name} (${selectedTier.price})\n`;
-    }
-
-    if (cartItems.length > 0) {
-      message += `\nالمنتجات المختارة:\n`;
-      cartItems.forEach((item) => {
-        message += `- ${item.name} (الكمية: ${item.qty}) = ${item.lineTotal} ${currency}\n`;
+    if (chosenVariants.length > 0) {
+      message += `المواصفات المختارة:\n`;
+      chosenVariants.forEach((v, i) => {
+        message += `  • قطعة #${i + 1}: ${v}\n`;
       });
-      if (deliveryFee > 0) {
-        message += `مصاريف التوصيل: ${deliveryFee} ${currency}\n`;
-      }
-      message += `الإجمالي الكلي: ${finalTotal} ${currency}\n`;
     }
 
-    if (customerName) message += `\nالاسم: ${customerName}\n`;
-    if (customerPhone) message += `الهاتف: ${customerPhone}\n`;
-    if (customerAddress) message += `العنوان: ${customerAddress}\n`;
+    if (includeOrderBump && easyOrder.enableOrderBump !== false) {
+      message += `إضافة خاصة: ${easyOrder.orderBump?.title} (+${bumpFee} ${currency})\n`;
+    }
+
+    if (promoApplied && discountAmount > 0) {
+      message += `كود الخصم (${pageData.promoCode || 'WELCOME10'}): -${discountAmount} ${currency}\n`;
+    }
+
+    message += `المحافظة والشحن: ${activeGov.name} (${
+      effectiveShippingFee === 0 ? 'شحن مجاني' : `${effectiveShippingFee} ${currency}`
+    })\n`;
+    message += `الإجمالي المطلوب عند الاستلام: ${finalTotal} ${currency}\n`;
+    message += `\nبيانات العميل:\n`;
+    message += `- الاسم: ${customerName}\n`;
+    message += `- الهاتف: ${customerPhone}\n`;
+    message += `- العنوان: ${activeGov.name} — ${customerAddress}\n`;
 
     const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+
+    const orderPayload = {
+      projectName: pageData.brandName || 'المتجر',
+      customerName,
+      customerPhone,
+      governorate: activeGov.name,
+      address: customerAddress,
+      bundleTitle: orderSummaryTitle,
+      variantSelections: chosenVariants,
+      orderBumpIncluded: Boolean(includeOrderBump && easyOrder.enableOrderBump !== false),
+      orderBumpTitle: easyOrder.orderBump?.title || '',
+      shippingFee: effectiveShippingFee,
+      discountAmount,
+      totalAmount: finalTotal,
+      currency,
+      waUrl,
+    };
+
+    let createdOrder = { id: 'ORD-' + Math.floor(1050 + Math.random() * 8900), ...orderPayload };
+    if (onSubmitOrder) {
+      const saved = onSubmitOrder(orderPayload);
+      if (saved?.id) createdOrder = { ...saved, waUrl };
+    }
+
+    setSubmittedReceipt(createdOrder);
     setOrderSubmitted(true);
     setTimeout(() => setOrderSubmitted(false), 4000);
-    window.open(waUrl, '_blank');
   };
 
   const scrollToSection = (id) => {
@@ -1506,9 +1619,10 @@ export default function CanvasFrame({
     );
   };
 
-  // 9. ORDER FORM SECTION
+  // 9. ORDER FORM SECTION (EasyOrders High-Conversion One-Page COD Checkout)
   const renderOrderFormSection = () => {
     if (!sections.orderForm) return null;
+    const activeQty = Number(activeBundle.qty) || 1;
 
     return (
       <section
@@ -1519,115 +1633,400 @@ export default function CanvasFrame({
         {renderSectionControlBar('orderForm')}
 
         <div className="max-w-2xl mx-auto">
-          <div className="mb-6">
-            <h2 className={`text-xl md:text-2xl font-bold ${theme.textMain} mb-1.5`}>
-              إتمام الطلب والتواصل المباشر
-            </h2>
-            <p className={`text-xs ${theme.textMuted}`}>
-              راجع اختياراتك وأدخل بياناتك لإرسال الطلب مفصلاً ومباشراً عبر واتساب
-            </p>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+            <div>
+              <h2 className={`text-xl md:text-2xl font-bold ${theme.textMain} mb-1.5`}>
+                نموذج الشراء الفوري (الدفع عند الاستلام)
+              </h2>
+              <p className={`text-xs ${theme.textMuted}`}>
+                اختر العرض والكمية المناسبة لك، وحدد محافظتك لحساب الفاتورة النهائية فوراً بدون تسجيل حساب
+              </p>
+            </div>
+            <span className={`text-[11px] px-2.5 py-1 rounded font-semibold shrink-0 ${theme.badgeBg}`}>
+              معاينة الطلب قبل الاستلام
+            </span>
           </div>
 
-          <form onSubmit={handleSendOrder} className={`p-6 md:p-8 rounded ${theme.cardClass} space-y-5`}>
-            {(selectedTier || cartItems.length > 0) ? (
-              <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} space-y-3`}>
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold ${theme.textMain}`}>ملخص اختياراتك:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCart({});
-                      setSelectedTier(null);
-                    }}
-                    className={`text-[11px] underline ${theme.textMuted} cursor-pointer`}
-                  >
-                    إفراغ الاختيارات
-                  </button>
+          {/* Stock Scarcity Indicator */}
+          {easyOrder.enableStockScarcity !== false && (
+            <div className={`mb-5 p-3.5 rounded ${theme.cardClass} flex items-center justify-between gap-4`}>
+              <div className="flex items-center gap-2.5 text-xs">
+                <span className="w-2 h-2 rounded-full bg-amber-600 shrink-0" />
+                <span className={theme.textMain}>
+                  متبقي <strong>{easyOrder.stockRemaining || 9} قطع فقط</strong> من هذه الدفعة بسعر العرض الحالي
+                </span>
+              </div>
+              <div className="w-24 h-1.5 bg-zinc-200 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                <div className="w-1/3 h-full bg-amber-700 rounded-full" />
+              </div>
+            </div>
+          )}
+
+          {/* Instant Order Confirmation Receipt if submitted */}
+          {submittedReceipt ? (
+            <div className={`p-6 md:p-8 rounded ${theme.cardClass} space-y-5`}>
+              <div className="flex items-center justify-between pb-4 border-b border-zinc-200/70">
+                <div>
+                  <span className="text-[11px] px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-900 font-bold">
+                    تم تسجيل طلبك بنجاح
+                  </span>
+                  <h3 className={`text-base font-bold mt-1.5 ${theme.textMain}`}>
+                    شكراً لك أ/ {submittedReceipt.customerName} — رقم الطلب ({submittedReceipt.id})
+                  </h3>
+                </div>
+                <div className="text-left">
+                  <div className={`text-xs ${theme.textMuted}`}>المطلوب عند الاستلام</div>
+                  <div className={`text-lg font-bold pc-price-val ${theme.textMain}`}>
+                    {submittedReceipt.totalAmount} {currency}
+                  </div>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} text-xs space-y-2`}>
+                <div className="flex justify-between">
+                  <span className={theme.textMuted}>العرض المختار:</span>
+                  <strong className={theme.textMain}>{submittedReceipt.bundleTitle}</strong>
+                </div>
+                {submittedReceipt.variantSelections?.length > 0 && (
+                  <div className="flex justify-between">
+                    <span className={theme.textMuted}>المواصفات:</span>
+                    <span className={theme.textMain}>{submittedReceipt.variantSelections.join(' + ')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className={theme.textMuted}>عنوان التوصيل:</span>
+                  <span className={theme.textMain}>
+                    {submittedReceipt.governorate} — {submittedReceipt.address}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => window.open(submittedReceipt.waUrl, '_blank')}
+                  className={`flex-1 py-3 rounded text-xs font-bold cursor-pointer ${theme.accentBtn}`}
+                >
+                  تأكيد سريع عبر واتساب أيضاً ↗
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSubmittedReceipt(null)}
+                  className={`px-4 py-3 rounded text-xs font-semibold cursor-pointer ${theme.secondaryBtn}`}
+                >
+                  تسجيل طلب جديد آخر
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSendOrder} className={`p-5 md:p-8 rounded ${theme.cardClass} space-y-6`}>
+              {/* STEP 1: EASYORDERS TIERED QUANTITY BUNDLES */}
+              {easyOrder.enableBundleSelector !== false && cartItems.length === 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className={`text-xs font-bold ${theme.textMain}`}>
+                      ١. اختر عرض التوفير والكمية (وفّر أكثر مع الباقات):
+                    </label>
+                    <span className={`text-[11px] ${theme.textMuted}`}>الدفع نقداً عند الاستلام</span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {bundleOffers.map((bundle, bIdx) => {
+                      const isChosen = selectedBundleIdx === bIdx;
+                      return (
+                        <div
+                          key={bundle.id || bIdx}
+                          onClick={() => setSelectedBundleIdx(bIdx)}
+                          className={`p-3.5 md:p-4 rounded border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                            isChosen
+                              ? `border-2 border-current ${theme.surfaceClass}`
+                              : `border ${theme.borderClass} hover:opacity-90`
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="radio"
+                              name="easyorder_bundle"
+                              checked={isChosen}
+                              onChange={() => setSelectedBundleIdx(bIdx)}
+                              className="mt-1 accent-zinc-900 cursor-pointer"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-xs md:text-sm font-bold ${theme.textMain}`}>
+                                  {bundle.title}
+                                </span>
+                                {bundle.badge && (
+                                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${theme.badgeBg}`}>
+                                    {bundle.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <p className={`text-[11px] mt-0.5 ${theme.textMuted}`}>{bundle.subtitle}</p>
+                            </div>
+                          </div>
+
+                          <div className="text-left shrink-0">
+                            <div className={`text-base md:text-lg font-bold pc-price-val ${theme.textMain}`}>
+                              {bundle.price} {currency}
+                            </div>
+                            {bundle.oldPrice > bundle.price && (
+                              <div className={`text-[11px] line-through ${theme.textMuted}`}>
+                                {bundle.oldPrice} {currency}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Per-Piece Variant Selectors (Piece #1, Piece #2, Piece #3) */}
+                  {variantOptions.length > 0 && (
+                    <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} space-y-3 mt-3`}>
+                      <span className={`text-xs font-bold block ${theme.textMain}`}>
+                        {easyOrder.variantLabel || 'حدد المواصفات (المقاس / النوع) لكل قطعة:'}
+                      </span>
+                      <div className="space-y-2">
+                        {Array.from({ length: activeQty }, (_, pIdx) => (
+                          <div key={pIdx} className="flex items-center gap-3">
+                            <span className={`text-xs font-medium w-20 shrink-0 ${theme.textMuted}`}>
+                              القطعة #{pIdx + 1}:
+                            </span>
+                            <select
+                              value={pieceVariants[pIdx] || variantOptions[0]}
+                              onChange={(e) => handlePieceVariantChange(pIdx, e.target.value)}
+                              className={`flex-1 px-3 py-2 rounded text-xs border ${theme.borderClass} ${theme.cardClass} ${theme.textMain} focus:outline-none cursor-pointer`}
+                            >
+                              {variantOptions.map((opt, oIdx) => (
+                                <option key={oIdx} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* If customer selected items from the Catalog above */}
+              {cartItems.length > 0 && (
+                <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} space-y-2.5`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold ${theme.textMain}`}>
+                      المنتجات المختارة من الكتالوج ({cartCount}):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCart({})}
+                      className={`text-[11px] underline ${theme.textMuted} cursor-pointer`}
+                    >
+                      العودة لعروض التوفير والكميات
+                    </button>
+                  </div>
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between text-xs py-1">
+                      <span className={theme.textMain}>
+                        {item.name} × {item.qty}
+                      </span>
+                      <span className={`font-semibold ${theme.textMain}`}>
+                        {item.lineTotal} {currency}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* STEP 2: CUSTOMER SHIPPING DETAILS & GOVERNORATE SELECTOR */}
+              <div className="space-y-4 pt-2 border-t border-zinc-200/60">
+                <label className={`text-xs font-bold block ${theme.textMain}`}>
+                  ٢. بيانات المستلم وعنوان التوصيل:
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className={`block text-[11px] font-medium mb-1 ${theme.textMain}`}>
+                      الاسم بالكامل *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="مثال: محمد أحمد الشافعي"
+                      className={`w-full px-3 py-2.5 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-[11px] font-medium mb-1 ${theme.textMain}`}>
+                      رقم الموبايل (متاح واتساب ومكالمات) *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="01012345678"
+                      className={`w-full px-3 py-2.5 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} font-mono focus:outline-none`}
+                    />
+                  </div>
                 </div>
 
-                {selectedTier && (
-                  <div className="flex items-center justify-between text-xs py-1">
-                    <span className={theme.textMain}>الباقة: {selectedTier.name}</span>
-                    <span className="font-bold">{selectedTier.price}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
+                  <div className="sm:col-span-5">
+                    <label className={`block text-[11px] font-medium mb-1 ${theme.textMain}`}>
+                      المحافظة (لحساب الشحن تلقائياً) *
+                    </label>
+                    <select
+                      value={selectedGovId}
+                      onChange={(e) => setSelectedGovId(e.target.value)}
+                      className={`w-full px-3 py-2.5 rounded text-xs border ${theme.borderClass} ${theme.cardClass} ${theme.textMain} focus:outline-none cursor-pointer`}
+                    >
+                      {shippingRates.map((gov) => (
+                        <option key={gov.id} value={gov.id}>
+                          {gov.name} ({isFreeShipping ? 'شحن مجاني' : `${gov.fee} ${currency}`})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-7">
+                    <label className={`block text-[11px] font-medium mb-1 ${theme.textMain}`}>
+                      العنوان بالتفصيل (المنطقة، الشارع، رقم العقار) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      placeholder="الحي، اسم الشارع، علامة مميزة بجوار المنزل..."
+                      className={`w-full px-3 py-2.5 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* STEP 3: ONE-CLICK ORDER BUMP (UPSELL) */}
+              {easyOrder.enableOrderBump !== false && easyOrder.orderBump && (
+                <label
+                  className={`p-4 rounded border-2 border-dashed ${theme.borderClass} ${theme.surfaceClass} flex items-start gap-3 cursor-pointer transition-colors`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={includeOrderBump}
+                    onChange={(e) => setIncludeOrderBump(e.target.checked)}
+                    className="mt-1 accent-zinc-900 w-4 h-4 cursor-pointer shrink-0"
+                  />
+                  <div className="flex-1 text-xs space-y-1">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className={`font-bold ${theme.textMain}`}>
+                        عرض خاص إضافي: {easyOrder.orderBump.title}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded font-bold text-[11px] ${theme.badgeBg}`}>
+                        +{easyOrder.orderBump.price} {currency} فقط
+                      </span>
+                    </div>
+                    <p className={`text-[11px] ${theme.textMuted}`}>{easyOrder.orderBump.desc}</p>
+                  </div>
+                </label>
+              )}
+
+              {/* STEP 4: PROMO CODE + LIVE COD INVOICE SUMMARY */}
+              <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} space-y-3`}>
+                {/* Promo Code Input */}
+                <div className="flex items-center gap-2 pb-3 border-b border-zinc-200/60">
+                  <input
+                    type="text"
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    placeholder={`هل لديك كود خصم؟ (مثال: ${pageData.promoCode || 'WELCOME10'})`}
+                    className={`flex-1 px-3 py-1.5 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    className={`px-3.5 py-1.5 rounded text-xs font-semibold cursor-pointer ${theme.secondaryBtn}`}
+                  >
+                    تطبيق الكود
+                  </button>
+                </div>
+                {promoError && <div className="text-[11px] text-amber-800">{promoError}</div>}
+                {promoApplied && (
+                  <div className="text-[11px] text-emerald-800 font-semibold">
+                    تم تفعيل كود الخصم ({pageData.promoDiscountPercent || 10}%) بنجاح!
                   </div>
                 )}
 
-                {cartItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between text-xs py-1">
-                    <div className="flex items-center gap-2">
-                      <span className={theme.textMain}>{item.name}</span>
-                      <span className={theme.textMuted}>× {item.qty}</span>
-                    </div>
+                {/* Itemized COD Invoice Breakdown */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className={theme.textMuted}>قيمة العرض / المنتجات:</span>
                     <span className={`font-semibold ${theme.textMain}`}>
-                      {item.lineTotal} {currency}
+                      {baseOrderSubtotal} {currency}
                     </span>
                   </div>
-                ))}
 
-                {cartSubtotal > 0 && (
-                  <div className={`pt-2 border-t ${theme.borderClass} flex items-center justify-between text-xs font-bold ${theme.textMain}`}>
-                    <span>الإجمالي شامل التوصيل ({deliveryFee} {currency}):</span>
-                    <span className="text-sm">{finalTotal} {currency}</span>
+                  {includeOrderBump && easyOrder.enableOrderBump !== false && (
+                    <div className="flex justify-between">
+                      <span className={theme.textMuted}>الإضافة الخاصة:</span>
+                      <span className={`font-semibold ${theme.textMain}`}>
+                        +{bumpFee} {currency}
+                      </span>
+                    </div>
+                  )}
+
+                  {promoApplied && discountAmount > 0 && (
+                    <div className="flex justify-between text-emerald-800 font-semibold">
+                      <span>قيمة الخصم ({discountPercent}%):</span>
+                      <span>
+                        -{discountAmount} {currency}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between">
+                    <span className={theme.textMuted}>
+                      شحن ({activeGov.name} — {activeGov.days}):
+                    </span>
+                    <span className={`font-semibold ${theme.textMain}`}>
+                      {isFreeShipping ? (
+                        <span>
+                          <span className="line-through opacity-50 ml-1.5">
+                            {activeGov.fee} {currency}
+                          </span>
+                          <strong className="text-emerald-800">شحن مجاني</strong>
+                        </span>
+                      ) : (
+                        `${effectiveShippingFee} ${currency}`
+                      )}
+                    </span>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className={`p-3.5 rounded border border-dashed ${theme.borderClass} text-xs ${theme.textMuted}`}>
-                لم تقم بتحديد منتجات معينة من الأعلى بعد — يمكنك إرسال استفسارك مباشرة أو اختيار منتجات من الكتالوج.
-              </div>
-            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={`block text-xs font-medium mb-1.5 ${theme.textMain}`}>
-                  الاسم الكامل
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="محمد أحمد..."
-                  className={`w-full px-3 py-2 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
-                />
+                  <div className={`pt-2.5 mt-2 border-t ${theme.borderClass} flex items-center justify-between`}>
+                    <span className={`text-xs md:text-sm font-bold ${theme.textMain}`}>
+                      الإجمالي المطلوب عند الاستلام:
+                    </span>
+                    <span className={`text-lg md:text-xl font-bold pc-price-val ${theme.textMain}`}>
+                      {finalTotal} {currency}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className={`block text-xs font-medium mb-1.5 ${theme.textMain}`}>
-                  رقم الهاتف للتواصل
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="01012345678"
-                  className={`w-full px-3 py-2 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
-                />
-              </div>
-            </div>
 
-            <div>
-              <label className={`block text-xs font-medium mb-1.5 ${theme.textMain}`}>
-                العنوان بالتفصيل أو الملاحظات الإضافية
-              </label>
-              <textarea
-                rows="2"
-                value={customerAddress}
-                onChange={(e) => setCustomerAddress(e.target.value)}
-                placeholder="المدينة، المنطقة، وأي تفاصيل خاصة بطلبك..."
-                className={`w-full px-3 py-2 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className={`w-full py-3.5 rounded text-xs md:text-sm font-bold transition-colors cursor-pointer ${theme.accentBtn}`}
-            >
-              {orderSubmitted
-                ? 'جاري تحويلك إلى واتساب لتأكيد الطلب...'
-                : `تأكيد وإرسال الطلب عبر واتساب${cartSubtotal > 0 ? ` (${finalTotal} ${currency})` : ''}`}
-            </button>
-          </form>
+              <button
+                type="submit"
+                className={`w-full py-3.5 rounded text-xs md:text-sm font-bold transition-colors cursor-pointer ${theme.accentBtn}`}
+              >
+                {orderSubmitted
+                  ? 'تم تسجيل طلبك بنجاح!'
+                  : `تأكيد الطلب الآن — الدفع عند الاستلام (${finalTotal} ${currency})`}
+              </button>
+            </form>
+          )}
         </div>
       </section>
     );
@@ -1897,6 +2296,36 @@ export default function CanvasFrame({
           <span>{pageData.brandName} — جميع الحقوق محفوظة</span>
           <span>للتواصل المباشر: {pageData.whatsappPhone}</span>
         </footer>
+
+        {/* EasyOrders Sticky Bottom Conversion Bar */}
+        {easyOrder.enableStickyBar !== false && sections.orderForm !== false && (
+          <div
+            className={`sticky bottom-0 z-20 border-t ${theme.borderClass} ${theme.cardClass} px-4 md:px-10 py-3 flex items-center justify-between gap-3 shadow-lg`}
+          >
+            <div className="min-w-0">
+              <div className={`text-xs font-bold truncate ${theme.textMain}`}>
+                {activeBundle.title}
+              </div>
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className={`font-bold ${theme.textMain}`}>
+                  {finalTotal} {currency}
+                </span>
+                {isFreeShipping && (
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${theme.badgeBg}`}>
+                    شحن مجاني
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => scrollToSection('order-section')}
+              className={`px-5 py-2.5 rounded text-xs font-bold shrink-0 cursor-pointer transition-colors ${theme.accentBtn}`}
+            >
+              اطلب الآن — الدفع عند الاستلام
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Phone Home Indicator Bar when in Mobile View */}

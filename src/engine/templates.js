@@ -217,6 +217,125 @@ export const DEFAULT_TYPOGRAPHY = {
   priceSize: 19,
 };
 
+export const DEFAULT_GOVERNORATE_RATES = [
+  { id: 'cairo_giza', name: 'القاهرة والجيزة', fee: 50, days: 'خلال 24 - 48 ساعة' },
+  { id: 'alex', name: 'الإسكندرية', fee: 60, days: 'خلال 2 - 3 أيام عمل' },
+  { id: 'delta_canal', name: 'محافظات الدلتا والقناة', fee: 65, days: 'خلال 2 - 3 أيام عمل' },
+  { id: 'upper_egypt', name: 'محافظات الصعيد والبحر الأحمر', fee: 85, days: 'خلال 3 - 5 أيام عمل' },
+];
+
+export function buildDefaultEasyOrderConfig(niche, basePrice = 350) {
+  const p1 = Math.round(basePrice);
+  const p2Old = p1 * 2;
+  const p2 = Math.round(p1 * 1.75);
+  const p3Old = p1 * 3;
+  const p3 = Math.round(p1 * 2.4);
+
+  const variantMap = {
+    perfume: {
+      variantLabel: 'اختر العطر والتركيز لكل عبوة',
+      variantOptions: [
+        'عطر سَمَر — أخشاب الصندل والعنبر (50 مل)',
+        'عطر سُكون — المسك الأبيض وخشب الأرز (50 مل)',
+        'عطر أَثَر — عود ملكي معتق (50 مل)',
+      ],
+      bumpTitle: 'إضافة صندوق إهداء خشبي فاخر + عينات تجريبية',
+      bumpPrice: 55,
+      bumpDesc: 'تغليف فاخر مناسب للإهداء مع عينتين مجانيتين لتجربة العطور قبل فتح العبوة الأساسية.',
+    },
+    coffee: {
+      variantLabel: 'اختر المحصول ودرجة الطحن لكل كيس (250g)',
+      variantOptions: [
+        'إثيوبي ييرغاشيف — حبوب كاملة (Whole Beans)',
+        'إثيوبي ييرغاشيف — مطحون تقطير (V60 / Chemex)',
+        'كولومبي سوبريمو — مطحون إسبريسو',
+        'مزيج قاف الكلاسيكي — مطحون قهوة تركي',
+      ],
+      bumpTitle: 'إضافة فلاتر تقطير ورقية أصلية (40 فلتر) بخصم 40%',
+      bumpPrice: 45,
+      bumpDesc: 'فلاتر غير مبيضة تحافظ على نقاء نكهة القهوة المختصة.',
+    },
+    fashion: {
+      variantLabel: 'اختر المقاس واللون لكل قطعة',
+      variantOptions: [
+        'مقاس M — بيج كتان طبيعي',
+        'مقاس L — بيج كتان طبيعي',
+        'مقاس XL — بيج كتان طبيعي',
+        'مقاس M — أبيض عاجي',
+        'مقاس L — أبيض عاجي',
+        'مقاس XL — كحلي داكن',
+      ],
+      bumpTitle: 'إضافة كيس حفظ قماشي طبيعي + بخاخ عناية بالكتان',
+      bumpPrice: 50,
+      bumpDesc: 'يحافظ على نعومة أنسجة الكتان ويمنع التجعد أثناء السفر والتخزين.',
+    },
+    default: {
+      variantLabel: 'اختر النوع أو المواصفات لكل وحدة',
+      variantOptions: [
+        'الإصدار الأساسي الأول',
+        'الإصدار المميز الثاني',
+        'تشكيلة متنوعة',
+      ],
+      bumpTitle: 'إضافة تغليف خاص وضمان استبدال ممتد',
+      bumpPrice: 45,
+      bumpDesc: 'أولوية تجهيز الطلب مع تغليف مقوى وضمان استبدال فوري.',
+    },
+  };
+
+  const chosenVar = variantMap[niche] || variantMap.default;
+
+  return {
+    enableBundleSelector: true,
+    enableStickyBar: true,
+    enableStockScarcity: true,
+    stockRemaining: 9,
+    enableOrderBump: true,
+    variantLabel: chosenVar.variantLabel,
+    variantOptions: chosenVar.variantOptions,
+    orderBump: {
+      title: chosenVar.bumpTitle,
+      price: chosenVar.bumpPrice,
+      desc: chosenVar.bumpDesc,
+    },
+    shippingRates: [...DEFAULT_GOVERNORATE_RATES],
+    bundleOffers: [
+      {
+        id: 'bundle_1',
+        qty: 1,
+        title: 'عرض قطعة واحدة (التجربة الأساسية)',
+        subtitle: 'السعر الأساسي للمنتج + مصاريف الشحن',
+        price: p1,
+        oldPrice: Math.round(p1 * 1.18),
+        saveText: '',
+        freeShipping: false,
+        badge: '',
+      },
+      {
+        id: 'bundle_2',
+        qty: 2,
+        title: 'عرض قطعتين (الأكثر طلباً)',
+        subtitle: `وفّر ${p2Old - p2} ج.م + شحن مجاني لجميع المحافظات`,
+        price: p2,
+        oldPrice: p2Old,
+        saveText: `وفّر ${p2Old - p2} ج.م`,
+        freeShipping: true,
+        badge: 'الأكثر طلباً + شحن مجاني',
+      },
+      {
+        id: 'bundle_3',
+        qty: 3,
+        title: 'عرض 3 قطع (باقة التوفير القصوى)',
+        subtitle: `وفّر ${p3Old - p3} ج.م + شحن مجاني لجميع المحافظات`,
+        price: p3,
+        oldPrice: p3Old,
+        saveText: `وفّر ${p3Old - p3} ج.م`,
+        freeShipping: true,
+        badge: 'أعلى توفير + شحن مجاني',
+      },
+    ],
+  };
+}
+
 export const TYPOGRAPHY_PRESETS = [
   {
     id: 'small',
@@ -1089,6 +1208,7 @@ export function generatePageData(promptText = '', themeKey = 'editorial') {
     layouts: nicheDefaultLayouts[niche] || { ...DEFAULT_LAYOUTS },
     typography: { ...DEFAULT_TYPOGRAPHY },
     customColors: { ...DEFAULT_CUSTOM_COLORS },
+    easyOrder: buildDefaultEasyOrderConfig(niche, baseNumericPrice),
   };
 }
 

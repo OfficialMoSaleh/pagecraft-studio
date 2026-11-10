@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CanvasFrame from './CanvasFrame';
-import { resolvePublishedSite } from '../engine/projects';
+import { resolvePublishedSite, addOrderToInbox } from '../engine/projects';
 
 export default function PublishedSiteView({ slug, sharedSite, onExitToStudio, onRemixSharedSite }) {
   const [site, setSite] = useState(sharedSite || null);
@@ -71,6 +71,7 @@ export default function PublishedSiteView({ slug, sharedSite, onExitToStudio, on
       <CanvasFrame
         pageData={site.pageData}
         onUpdateField={() => {}}
+        onSubmitOrder={(payload) => addOrderToInbox(payload).order}
         activeThemeKey={site.theme || 'editorial'}
         deviceView="desktop"
         isFullscreen={true}

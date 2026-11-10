@@ -8,6 +8,7 @@ import {
   SECTION_LAYOUT_OPTIONS,
   ARABIC_FONTS,
   BRAND_COLOR_PRESETS,
+  buildDefaultEasyOrderConfig,
 } from './templates';
 import {
   sanitizeSlug,
@@ -17,6 +18,8 @@ import {
   createInitialProjects,
   encodeShareableToken,
   decodeShareableToken,
+  addOrderToInbox,
+  buildOrdersCsvContent,
 } from './projects';
 
 describe('Full-Scale Editorial Page Builder Engine', () => {
@@ -115,6 +118,38 @@ describe('Full-Scale Editorial Page Builder Engine', () => {
     expect(decoded.pageData.typography.heroSize).toBe(44);
     expect(decoded.pageData.customColors.enabled).toBe(true);
     expect(decoded.pageData.customColors.primary).toBe('#6B1D2F');
+  });
+
+  it('configures EasyOrders COD bundle offers, governorate shipping, and exports UTF-8 CSV shipping sheets', () => {
+    const config = buildDefaultEasyOrderConfig('perfume', 350);
+    expect(config.bundleOffers.length).toBe(3);
+    expect(config.bundleOffers[1].freeShipping).toBe(true);
+    expect(config.shippingRates.length).toBe(4);
+    expect(config.variantOptions.length).toBeGreaterThanOrEqual(3);
+
+    const { order, list } = addOrderToInbox({
+      brandName: 'أَثَر للعطور',
+      customerName: 'سارة محمود',
+      customerPhone: '01099887766',
+      governorate: 'القاهرة والجيزة',
+      cityAddress: 'التجمع الخامس — شارع التسعين',
+      bundleTitle: 'عرض التوفير (قطعتين)',
+      quantity: 2,
+      selectedVariants: ['50 مل — عود ملكي', '100 مل — مسك أبيض'],
+      orderBumpIncluded: true,
+      subtotal: 640,
+      shippingFee: 0,
+      total: 640,
+      currency: 'ج.م',
+    });
+
+    expect(order.id).toMatch(/^ORD-/);
+    expect(list.length).toBeGreaterThan(0);
+
+    const csv = buildOrdersCsvContent(list);
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+    expect(csv).toContain('سارة محمود');
+    expect(csv).toContain('عرض التوفير (قطعتين)');
   });
 
   it('contains all calm design themes and curated image library', () => {
