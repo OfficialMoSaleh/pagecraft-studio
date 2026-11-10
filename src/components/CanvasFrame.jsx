@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DESIGN_THEMES,
   DEFAULT_SECTION_ORDER,
@@ -8,7 +8,9 @@ import {
   ARABIC_FONTS,
   DEFAULT_CUSTOM_COLORS,
   buildDefaultEasyOrderConfig,
+  detectNicheFromText,
 } from '../engine/templates';
+import { loadOrdersInbox } from '../engine/projects';
 
 const SECTION_NAMES_AR = {
   hero: 'القسم الرئيسي (Hero)',
@@ -30,6 +32,7 @@ export default function CanvasFrame({
   onToggleSection,
   onOpenImagePicker,
   onSubmitOrder,
+  orders: propOrders,
   activeThemeKey,
   deviceView,
   isFullscreen,
@@ -76,6 +79,12 @@ export default function CanvasFrame({
   const isMobile = deviceView === 'mobile' && !isFullscreen;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Multi-Page Storefront Router ('home' | 'product' | 'checkout' | 'tracking')
+  const [storePage, setStorePage] = useState('home');
+  const [selectedProductId, setSelectedProductId] = useState(() => pageData.products?.[0]?.id || null);
+  const [activeThumbIdx, setActiveThumbIdx] = useState(0);
+  const [productInfoTab, setProductInfoTab] = useState('specs');
+
   // Interactive states inside the live landing page
   const [selectedCategory, setSelectedCategory] = useState('الكل');
   const [cart, setCart] = useState({});
@@ -83,8 +92,13 @@ export default function CanvasFrame({
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
   // Customer Order Form & EasyOrders COD State
+  const detectedNiche =
+    pageData.niche ||
+    detectNicheFromText(
+      `${pageData.brandName || ''} ${pageData.category || ''} ${pageData.headline || ''}`
+    );
   const easyOrder = {
-    ...buildDefaultEasyOrderConfig('perfume', Number(pageData.products?.[0]?.price) || 340),
+    ...buildDefaultEasyOrderConfig(detectedNiche, Number(pageData.products?.[0]?.price) || 340),
     ...(pageData.easyOrder || {}),
   };
   const bundleOffers = easyOrder.bundleOffers || [];
@@ -108,9 +122,48 @@ export default function CanvasFrame({
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [customerNotes, setCustomerNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   const [orderSubmitted, setOrderSubmitted] = useState(false);
 
+  // Order Tracking Page State ('tracking')
+  const [trackOrderId, setTrackOrderId] = useState('');
+  const [trackPhone, setTrackPhone] = useState('');
+  const [trackedOrderResult, setTrackedOrderResult] = useState(null);
+  const [trackError, setTrackError] = useState('');
+
+  // Reset storefront state whenever the website idea / brand / niche changes so text never mixes
+  useEffect(() => {
+    const freshOpts = easyOrder.variantOptions || ['الإصدار الأساسي'];
+    setPieceVariants([
+      freshOpts[0] || '',
+      freshOpts[1] || freshOpts[0] || '',
+      freshOpts[2] || freshOpts[0] || '',
+    ]);
+    setSelectedCategory('الكل');
+    setCart({});
+    setSelectedTier(null);
+    setSelectedProductId(pageData.products?.[0]?.id || null);
+    setActiveThumbIdx(0);
+    setSubmittedReceipt(null);
+  }, [pageData.brandName, pageData.niche, pageData.headline]);
+
   const products = pageData.products || [];
+  const activeProduct =
+    products.find((p) => p.id === selectedProductId) || products[0] || {
+      id: 'prod_default',
+      name: pageData.brandName || 'المنتج الرئيسي',
+      category: pageData.category || 'عام',
+      price: 350,
+      oldPrice: 420,
+      desc: pageData.subheadline || '',
+      image: pageData.heroImage || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
+      tag: 'الأكثر طلباً',
+    };
+  const activeProductIdx = Math.max(
+    0,
+    products.findIndex((p) => p.id === activeProduct.id)
+  );
   const productCategories = ['الكل', ...new Set(products.map((p) => p.category).filter(Boolean))];
   const filteredProducts =
     selectedCategory === 'الكل'
@@ -149,6 +202,10 @@ export default function CanvasFrame({
     price: Number(pageData.products?.[0]?.price) || 340,
     freeShipping: false,
   };
+  const activeQty = Number(activeBundle.qty) || 1;
+  const freeShippingThreshold = 900;
+  const parsePrice = (val) => Number(String(val || 0).replace(/[^\d.]/g, '')) || 0;
+
   const activeGov =
     shippingRates.find((g) => g.id === selectedGovId) ||
     shippingRates[0] || { name: 'القاهرة والجيزة', fee: deliveryFee || 50, days: 'خلال 48 ساعة' };
@@ -172,9 +229,14 @@ export default function CanvasFrame({
   const finalTotal = Math.max(0, baseOrderSubtotal - discountAmount + effectiveShippingFee + bumpFee);
 
   // Inline array update helpers
-  const handleProductUpdate = (index, field, value) => {
+  const handleProductUpdate = (indexOrId, field, value) => {
     const updated = [...products];
-    updated[index] = { ...updated[index], [field]: value };
+    const idx =
+      typeof indexOrId === 'number'
+        ? indexOrId
+        : updated.findIndex((p) => p.id === indexOrId);
+    if (idx === -1 || !updated[idx]) return;
+    updated[idx] = { ...updated[idx], [field]: value };
     onUpdateField('products', updated);
   };
 
@@ -301,6 +363,14 @@ export default function CanvasFrame({
     message += `- الاسم: ${customerName}\n`;
     message += `- الهاتف: ${customerPhone}\n`;
     message += `- العنوان: ${activeGov.name} — ${customerAddress}\n`;
+    if (customerNotes) {
+      message += `- ملاحظات التوصيل: ${customerNotes}\n`;
+    }
+    message += `- طريقة الدفع: ${
+      paymentMethod === 'instapay'
+        ? 'إنستاباي / محفظة إلكترونية'
+        : 'الدفع نقداً عند الاستلام (COD)'
+    }\n`;
 
     const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
 
@@ -310,6 +380,8 @@ export default function CanvasFrame({
       customerPhone,
       governorate: activeGov.name,
       address: customerAddress,
+      notes: customerNotes,
+      paymentMethod,
       bundleTitle: orderSummaryTitle,
       variantSelections: chosenVariants,
       orderBumpIncluded: Boolean(includeOrderBump && easyOrder.enableOrderBump !== false),
@@ -321,18 +393,108 @@ export default function CanvasFrame({
       waUrl,
     };
 
-    let createdOrder = { id: 'ORD-' + Math.floor(1050 + Math.random() * 8900), ...orderPayload };
+    let createdOrder = {
+      id: 'ORD-' + Math.floor(1050 + Math.random() * 8900),
+      status: 'new',
+      createdAt: new Date().toISOString(),
+      ...orderPayload,
+    };
     if (onSubmitOrder) {
       const saved = onSubmitOrder(orderPayload);
       if (saved?.id) createdOrder = { ...saved, waUrl };
     }
 
     setSubmittedReceipt(createdOrder);
+    setTrackOrderId(createdOrder.id);
+    setTrackPhone(customerPhone);
+    setTrackedOrderResult(createdOrder);
     setOrderSubmitted(true);
     setTimeout(() => setOrderSubmitted(false), 4000);
   };
 
+  // Multi-Page Storefront Navigation Helpers
+  const openProductDetails = (prodId) => {
+    if (prodId) setSelectedProductId(prodId);
+    setActiveThumbIdx(0);
+    setStorePage('product');
+  };
+
+  const openCheckoutPage = () => {
+    setStorePage('checkout');
+  };
+
+  const getAllStoreOrders = () => {
+    const inboxList = Array.isArray(propOrders) && propOrders.length > 0 ? propOrders : loadOrdersInbox();
+    if (submittedReceipt && !inboxList.some((o) => o.id === submittedReceipt.id)) {
+      return [submittedReceipt, ...inboxList];
+    }
+    return inboxList;
+  };
+
+  const runOrderSearch = (orderIdInput, phoneInput) => {
+    const cleanId = String(orderIdInput || '')
+      .trim()
+      .toUpperCase()
+      .replace(/^#/, '');
+    const cleanPhone = String(phoneInput || '')
+      .trim()
+      .replace(/\D/g, '');
+
+    if (!cleanId && !cleanPhone) {
+      setTrackError('يرجى إدخال رقم الطلب (مثال: ORD-1041) أو رقم الهاتف للاستعلام.');
+      setTrackedOrderResult(null);
+      return;
+    }
+
+    const allOrders = getAllStoreOrders();
+    const matched = allOrders.find((ord) => {
+      const ordIdUpper = String(ord.id || '').toUpperCase();
+      const ordDigits = ordIdUpper.replace(/\D/g, '');
+      const ordPhoneDigits = String(ord.customerPhone || '').replace(/\D/g, '');
+
+      const idMatches =
+        cleanId &&
+        (ordIdUpper === cleanId ||
+          ordIdUpper === `ORD-${cleanId}` ||
+          (ordDigits && ordDigits === cleanId.replace(/\D/g, '')));
+      const phoneMatches =
+        cleanPhone &&
+        cleanPhone.length >= 6 &&
+        (ordPhoneDigits.includes(cleanPhone) || cleanPhone.includes(ordPhoneDigits));
+
+      if (cleanId && cleanPhone) {
+        return idMatches || phoneMatches;
+      }
+      return idMatches || phoneMatches;
+    });
+
+    if (matched) {
+      setTrackedOrderResult(matched);
+      setTrackError('');
+    } else {
+      setTrackedOrderResult(null);
+      setTrackError('لم يتم العثور على طلب مطابق. تأكد من رقم الطلب (مثل ORD-1041) أو رقم الهاتف.');
+    }
+  };
+
+  const openTrackingPage = (prefillOrderId = '', prefillPhone = '') => {
+    setStorePage('tracking');
+    if (prefillOrderId || prefillPhone) {
+      setTrackOrderId(prefillOrderId);
+      setTrackPhone(prefillPhone);
+      runOrderSearch(prefillOrderId, prefillPhone);
+    }
+  };
+
   const scrollToSection = (id) => {
+    if (storePage !== 'home') {
+      setStorePage('home');
+      setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
+      return;
+    }
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
@@ -789,37 +951,46 @@ export default function CanvasFrame({
     );
   };
 
-  // Helper for Add-to-Cart Button
+  // Helper for Product Details + Add-to-Cart Buttons
   const renderCartControl = (prod) => {
     const qtyInCart = cart[prod.id] || 0;
-    if (qtyInCart === 0) {
-      return (
-        <button
-          type="button"
-          onClick={() => updateCartQty(prod.id, 1)}
-          className={`text-xs px-4 py-2 rounded font-semibold transition-colors cursor-pointer shrink-0 ${theme.accentBtn}`}
-        >
-          أضف للطلب
-        </button>
-      );
-    }
     return (
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         <button
           type="button"
-          onClick={() => updateCartQty(prod.id, -1)}
-          className={`w-7 h-7 rounded border ${theme.borderClass} flex items-center justify-center text-sm font-bold cursor-pointer`}
+          onClick={() => openProductDetails(prod.id)}
+          className={`text-xs px-3 py-1.5 rounded font-medium transition-colors cursor-pointer ${theme.secondaryBtn}`}
         >
-          -
+          التفاصيل
         </button>
-        <span className={`text-xs font-bold w-4 text-center ${theme.textMain}`}>{qtyInCart}</span>
-        <button
-          type="button"
-          onClick={() => updateCartQty(prod.id, 1)}
-          className={`w-7 h-7 rounded border ${theme.borderClass} flex items-center justify-center text-sm font-bold cursor-pointer`}
-        >
-          +
-        </button>
+
+        {qtyInCart === 0 ? (
+          <button
+            type="button"
+            onClick={() => updateCartQty(prod.id, 1)}
+            className={`text-xs px-3.5 py-1.5 rounded font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
+          >
+            أضف للسلة
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => updateCartQty(prod.id, -1)}
+              className={`w-7 h-7 rounded border ${theme.borderClass} flex items-center justify-center text-sm font-bold cursor-pointer`}
+            >
+              -
+            </button>
+            <span className={`text-xs font-bold w-4 text-center ${theme.textMain}`}>{qtyInCart}</span>
+            <button
+              type="button"
+              onClick={() => updateCartQty(prod.id, 1)}
+              className={`w-7 h-7 rounded border ${theme.borderClass} flex items-center justify-center text-sm font-bold cursor-pointer`}
+            >
+              +
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -1641,9 +1812,8 @@ export default function CanvasFrame({
   };
 
   // 9. ORDER FORM SECTION (EasyOrders High-Conversion One-Page COD Checkout)
-  const renderOrderFormSection = () => {
-    if (!sections.orderForm) return null;
-    const activeQty = Number(activeBundle.qty) || 1;
+  const renderOrderFormSection = (forceShow = false) => {
+    if (!sections.orderForm && !forceShow) return null;
 
     return (
       <section
@@ -1725,17 +1895,24 @@ export default function CanvasFrame({
               <div className="flex flex-col sm:flex-row gap-2.5">
                 <button
                   type="button"
-                  onClick={() => window.open(submittedReceipt.waUrl, '_blank')}
+                  onClick={() => openTrackingPage(submittedReceipt.id, submittedReceipt.customerPhone)}
                   className={`flex-1 py-3 rounded text-xs font-bold cursor-pointer ${theme.accentBtn}`}
                 >
-                  تأكيد سريع عبر واتساب أيضاً ↗
+                  تتبع حالة طلبك الآن ({submittedReceipt.id}) ←
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.open(submittedReceipt.waUrl, '_blank')}
+                  className={`px-4 py-3 rounded text-xs font-semibold cursor-pointer ${theme.secondaryBtn}`}
+                >
+                  تأكيد عبر واتساب ↗
                 </button>
                 <button
                   type="button"
                   onClick={() => setSubmittedReceipt(null)}
                   className={`px-4 py-3 rounded text-xs font-semibold cursor-pointer ${theme.secondaryBtn}`}
                 >
-                  تسجيل طلب جديد آخر
+                  طلب جديد
                 </button>
               </div>
             </div>
@@ -1929,6 +2106,51 @@ export default function CanvasFrame({
                     />
                   </div>
                 </div>
+
+                {/* Delivery Notes & Payment Method Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 pt-1">
+                  <div className="sm:col-span-6">
+                    <label className={`block text-[11px] font-medium mb-1 ${theme.textMain}`}>
+                      طريقة الدفع المفضلة
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cod')}
+                        className={`px-3 py-2 rounded text-[11px] font-semibold border transition-all cursor-pointer text-right ${
+                          paymentMethod === 'cod'
+                            ? `border-2 border-current ${theme.surfaceClass} ${theme.textMain}`
+                            : `${theme.borderClass} ${theme.textMuted}`
+                        }`}
+                      >
+                        الدفع عند الاستلام (COD)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('instapay')}
+                        className={`px-3 py-2 rounded text-[11px] font-semibold border transition-all cursor-pointer text-right ${
+                          paymentMethod === 'instapay'
+                            ? `border-2 border-current ${theme.surfaceClass} ${theme.textMain}`
+                            : `${theme.borderClass} ${theme.textMuted}`
+                        }`}
+                      >
+                        إنستاباي / محفظة
+                      </button>
+                    </div>
+                  </div>
+                  <div className="sm:col-span-6">
+                    <label className={`block text-[11px] font-medium mb-1 ${theme.textMain}`}>
+                      ملاحظات التوصيل للمندوب (اختياري)
+                    </label>
+                    <input
+                      type="text"
+                      value={customerNotes}
+                      onChange={(e) => setCustomerNotes(e.target.value)}
+                      placeholder="مثال: الاتصال قبل الوصول بنصف ساعة، الدور الثالث..."
+                      className={`w-full px-3 py-2 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none`}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* STEP 3: ONE-CLICK ORDER BUMP (UPSELL) */}
@@ -2059,6 +2281,617 @@ export default function CanvasFrame({
                   : `تأكيد الطلب الآن — الدفع عند الاستلام (${finalTotal} ${currency})`}
               </button>
             </form>
+          )}
+        </div>
+      </section>
+    );
+  };
+
+  // ============================================================================
+  // MULTI-PAGE STOREFRONT RENDERERS:
+  // 1. Product Details Page (صفحة تفاصيل المنتج)
+  // 2. Dedicated Checkout Page (صفحة إتمام الطلب والدفع)
+  // 3. Order Tracking Page by Phone & Order ID (صفحة تتبع الطلب)
+  // ============================================================================
+  const renderProductDetailsPage = () => {
+    const prod = activeProduct || {
+      id: 'default-prod',
+      name: pageData.brandName || 'المنتج الرئيسي',
+      category: pageData.category || 'الإصدار الأساسي',
+      price: bundleOffers[0]?.price || '450',
+      oldPrice: bundleOffers[0]?.oldPrice || '600',
+      badge: 'الأكثر مبيعاً',
+      desc: pageData.subheadline || 'منتج أصلي عالي الجودة مصمم بعناية فائقة لتلبية احتياجاتك اليومية.',
+      imageUrl: pageData.heroImageUrl,
+    };
+
+    const relatedProducts = products.filter((p) => p.id !== prod.id).slice(0, 3);
+    const galleryImages = [
+      prod.imageUrl || pageData.heroImageUrl,
+      pageData.heroImageUrl || prod.imageUrl,
+      products[(products.findIndex((p) => p.id === prod.id) + 1) % Math.max(1, products.length)]?.imageUrl ||
+        prod.imageUrl,
+    ].filter(Boolean);
+
+    const activeGalleryImg = galleryImages[activeThumbIdx] || galleryImages[0];
+    const prodPriceNum = parsePrice(prod.price);
+    const prodOldPriceNum = parsePrice(prod.oldPrice);
+    const savingsVal = prodOldPriceNum > prodPriceNum ? prodOldPriceNum - prodPriceNum : 0;
+
+    return (
+      <section className={`px-6 @md:px-14 py-8 @md:py-12 border-b ${theme.borderClass}`}>
+        {/* Breadcrumb & Quick Product Switcher */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-zinc-200/60">
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setStorePage('home')}
+              className={`${theme.textMuted} hover:${theme.textMain} cursor-pointer underline`}
+            >
+              الرئيسية
+            </button>
+            <span className={theme.textMuted}>/</span>
+            <span className={theme.textMuted}>{prod.category || 'المنتجات'}</span>
+            <span className={theme.textMuted}>/</span>
+            <strong className={theme.textMain}>{prod.name}</strong>
+          </div>
+
+          {products.length > 1 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`text-[11px] ${theme.textMuted}`}>تصفح منتج آخر:</span>
+              {products.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProductId(item.id);
+                    setActiveThumbIdx(0);
+                  }}
+                  className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                    item.id === prod.id ? theme.accentBtn : `${theme.surfaceClass} ${theme.textMain}`
+                  }`}
+                >
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Main 2-Column Product Details Layout */}
+        <div className="grid grid-cols-1 @md:grid-cols-12 gap-8 items-start">
+          {/* Right/Left Column: Interactive Image Gallery */}
+          <div className="@md:col-span-6 space-y-3">
+            <div className={`rounded-lg overflow-hidden border ${theme.borderClass} ${theme.surfaceClass} relative`}>
+              {prod.badge && (
+                <span className={`absolute top-3 right-3 z-10 text-xs px-3 py-1 rounded font-bold ${theme.badgeBg}`}>
+                  {prod.badge}
+                </span>
+              )}
+              <img
+                src={activeGalleryImg}
+                alt={prod.name}
+                className="w-full h-[290px] @md:h-[390px] object-cover block"
+              />
+            </div>
+
+            {galleryImages.length > 1 && (
+              <div className="grid grid-cols-3 gap-2.5">
+                {galleryImages.map((imgUrl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveThumbIdx(idx)}
+                    className={`rounded overflow-hidden border-2 transition-all cursor-pointer h-20 ${
+                      activeThumbIdx === idx
+                        ? 'border-zinc-900 opacity-100'
+                        : `${theme.borderClass} opacity-65 hover:opacity-95`
+                    }`}
+                  >
+                    <img src={imgUrl} alt={`${prod.name} ${idx + 1}`} className="w-full h-full object-cover block" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Product Details, Variants, Bundle Offers & Direct Checkout Actions */}
+          <div className="@md:col-span-6 space-y-5">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`text-[11px] px-2.5 py-0.5 rounded font-medium ${theme.badgeBg}`}>
+                  {prod.category || pageData.category || 'إصدار حصري'}
+                </span>
+                <span className="text-[11px] text-amber-600 font-bold">★ 4.9 (تقييم موثق من العملاء)</span>
+                <span className="text-[11px] text-emerald-700 font-semibold">• متوفر للشحن الفوري</span>
+              </div>
+
+              <h1
+                contentEditable={!isFullscreen}
+                suppressContentEditableWarning
+                onBlur={(e) => handleProductUpdate(prod.id, 'name', e.currentTarget.innerText)}
+                className={`text-2xl @md:text-3xl font-bold ${theme.textMain} focus:outline-none cursor-text`}
+              >
+                {prod.name}
+              </h1>
+
+              <div className="flex items-baseline gap-3 mt-3">
+                <span className={`text-2xl font-bold pc-price-val ${theme.textMain}`}>
+                  {prod.price} {currency}
+                </span>
+                {prod.oldPrice && (
+                  <span className={`text-sm line-through ${theme.textMuted}`}>
+                    {prod.oldPrice} {currency}
+                  </span>
+                )}
+                {savingsVal > 0 && (
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-bold">
+                    وفّر {savingsVal} {currency}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p
+              contentEditable={!isFullscreen}
+              suppressContentEditableWarning
+              onBlur={(e) => handleProductUpdate(prod.id, 'desc', e.currentTarget.innerText)}
+              className={`text-sm leading-relaxed ${theme.textMuted} focus:outline-none cursor-text`}
+            >
+              {prod.desc}
+            </p>
+
+            {/* Tiered Quantity Bundles inside Product Page */}
+            {easyOrder.enableBundleSelector !== false && (
+              <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} space-y-2.5`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold ${theme.textMain}`}>اختر عرض التوفير والكمية:</span>
+                  <span className={`text-[11px] ${theme.textMuted}`}>خصم إضافي للكميات</span>
+                </div>
+                <div className="space-y-2">
+                  {bundleOffers.map((bundle, bIdx) => {
+                    const isChosen = selectedBundleIdx === bIdx;
+                    return (
+                      <div
+                        key={bundle.id || bIdx}
+                        onClick={() => setSelectedBundleIdx(bIdx)}
+                        className={`p-3 rounded border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                          isChosen
+                            ? `border-2 border-current ${theme.cardClass}`
+                            : `border ${theme.borderClass} hover:opacity-90`
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            type="radio"
+                            name="product_page_bundle"
+                            checked={isChosen}
+                            onChange={() => setSelectedBundleIdx(bIdx)}
+                            className="accent-zinc-900 cursor-pointer"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-xs font-bold ${theme.textMain}`}>{bundle.title}</span>
+                              {bundle.badge && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${theme.badgeBg}`}>
+                                  {bundle.badge}
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-[11px] block ${theme.textMuted}`}>{bundle.subtitle}</span>
+                          </div>
+                        </div>
+                        <div className="text-left shrink-0">
+                          <span className={`text-sm font-bold ${theme.textMain}`}>
+                            {bundle.price} {currency}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Variant Selection per Piece */}
+            {variantOptions.length > 0 && (
+              <div className={`p-4 rounded ${theme.cardClass} space-y-2.5`}>
+                <span className={`text-xs font-bold block ${theme.textMain}`}>
+                  {easyOrder.variantLabel || 'حدد المواصفات المطلوبة:'}
+                </span>
+                <div className="space-y-2">
+                  {Array.from({ length: activeQty }, (_, pIdx) => (
+                    <div key={pIdx} className="flex items-center gap-2.5">
+                      <span className={`text-xs font-medium w-20 shrink-0 ${theme.textMuted}`}>
+                        القطعة #{pIdx + 1}:
+                      </span>
+                      <select
+                        value={pieceVariants[pIdx] || variantOptions[0]}
+                        onChange={(e) => handlePieceVariantChange(pIdx, e.target.value)}
+                        className={`flex-1 px-3 py-2 rounded text-xs border ${theme.borderClass} ${theme.surfaceClass} ${theme.textMain} focus:outline-none cursor-pointer`}
+                      >
+                        {variantOptions.map((opt, oIdx) => (
+                          <option key={oIdx} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Primary CTA Buttons: Buy Now (Jump to Checkout) + Add to Cart */}
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => openCheckoutPage()}
+                className={`flex-1 py-3.5 px-5 rounded text-xs md:text-sm font-bold cursor-pointer transition-colors ${theme.accentBtn}`}
+              >
+                اشترِ الآن — الدفع عند الاستلام ({finalTotal} {currency})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCartDelta(prod.id, 1)}
+                className={`py-3.5 px-4 rounded text-xs font-semibold cursor-pointer transition-colors ${theme.secondaryBtn}`}
+              >
+                + أضف للسلة ({cart[prod.id] || 0})
+              </button>
+            </div>
+
+            {/* Trust & Shipping Guarantees */}
+            <div className={`grid grid-cols-3 gap-2 pt-2 text-center text-[11px] ${theme.textMuted}`}>
+              <div className={`p-2.5 rounded ${theme.surfaceClass} border ${theme.borderClass}`}>
+                <strong className={`block ${theme.textMain}`}>الدفع عند الاستلام</strong>
+                <span>معاينة قبل الدفع</span>
+              </div>
+              <div className={`p-2.5 rounded ${theme.surfaceClass} border ${theme.borderClass}`}>
+                <strong className={`block ${theme.textMain}`}>شحن سريع</strong>
+                <span>خلال ٢ - ٤ أيام عمل</span>
+              </div>
+              <div className={`p-2.5 rounded ${theme.surfaceClass} border ${theme.borderClass}`}>
+                <strong className={`block ${theme.textMain}`}>استبدال مجاني</strong>
+                <span>ضمان ١٤ يوماً</span>
+              </div>
+            </div>
+
+            {/* Detailed Product Tabs: Specifications / Shipping / Customer Reviews */}
+            <div className={`pt-3 border-t ${theme.borderClass}`}>
+              <div className="flex items-center gap-2 mb-3">
+                {[
+                  { id: 'specs', label: 'المواصفات والتفاصيل' },
+                  { id: 'shipping', label: 'سياسة الشحن والاستبدال' },
+                  { id: 'reviews', label: 'تقييمات المشترين' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setProductInfoTab(tab.id)}
+                    className={`px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-colors ${
+                      productInfoTab === tab.id ? theme.accentBtn : `${theme.surfaceClass} ${theme.textMuted}`
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} text-xs space-y-2`}>
+                {productInfoTab === 'specs' && (
+                  <ul className={`space-y-1.5 list-disc list-inside ${theme.textMain}`}>
+                    <li>المنتج: {prod.name} — أصلي ومضمون ١٠٠٪ من {pageData.brandName}.</li>
+                    <li>الخامات والجودة: مصنع وفق أعلى معايير الجودة مع تغليف محكم يحافظ على المنتج.</li>
+                    {(pageData.features || []).slice(0, 2).map((f, idx) => (
+                      <li key={idx}>
+                        {f.title}: {f.desc}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {productInfoTab === 'shipping' && (
+                  <div className={`space-y-1.5 ${theme.textMain}`}>
+                    <p>• يتم توصيل الطلبات لجميع المحافظات خلال ٢ إلى ٤ أيام عمل.</p>
+                    <p>
+                      • الشحن مجاني للطلبات فوق {freeShippingThreshold} {currency}.
+                    </p>
+                    <p>• يحق للعميل معاينة الطلب والتأكد من مطابقته للمواصفات قبل سداد المبلغ للمندوب.</p>
+                  </div>
+                )}
+                {productInfoTab === 'reviews' && (
+                  <div className="space-y-2.5">
+                    <div className={`p-2.5 rounded ${theme.cardClass}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <strong className={theme.textMain}>{pageData.testimonialAuthor || 'عميل موثق'}</strong>
+                        <span className="text-amber-600 font-bold">★★★★★</span>
+                      </div>
+                      <p className={theme.textMuted}>
+                        "{pageData.testimonialQuote || 'جودة ممتازة وتوصيل سريع جداً والتغليف فوق الرائع.'}"
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Related Products Grid */}
+        {relatedProducts.length > 0 && (
+          <div className={`mt-12 pt-8 border-t ${theme.borderClass}`}>
+            <h2 className={`text-lg font-bold mb-4 ${theme.textMain}`}>منتجات أخرى قد تعجبك من {pageData.brandName}</h2>
+            <div className="grid grid-cols-1 @sm:grid-cols-3 gap-4">
+              {relatedProducts.map((rel) => (
+                <div
+                  key={rel.id}
+                  onClick={() => openProductDetails(rel.id)}
+                  className={`p-3.5 rounded ${theme.cardClass} cursor-pointer hover:opacity-95 transition-opacity flex flex-col justify-between`}
+                >
+                  <div>
+                    {rel.imageUrl && (
+                      <img src={rel.imageUrl} alt={rel.name} className="w-full h-36 object-cover rounded mb-3" />
+                    )}
+                    <h3 className={`text-sm font-bold ${theme.textMain}`}>{rel.name}</h3>
+                    <p className={`text-xs mt-1 line-clamp-2 ${theme.textMuted}`}>{rel.desc}</p>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-zinc-200/50">
+                    <span className={`text-sm font-bold ${theme.textMain}`}>
+                      {rel.price} {currency}
+                    </span>
+                    <span className={`text-[11px] underline ${theme.textMain}`}>عرض التفاصيل ←</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  };
+
+  // 2. Dedicated Checkout Page (صفحة إتمام الطلب والدفع)
+  const renderCheckoutPage = () => {
+    return (
+      <div className="py-4">
+        <div className="px-6 @md:px-14 pt-4 pb-2 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setStorePage('home')}
+              className={`${theme.textMuted} hover:${theme.textMain} cursor-pointer underline`}
+            >
+              الرئيسية
+            </button>
+            <span className={theme.textMuted}>/</span>
+            <button
+              type="button"
+              onClick={() => setStorePage('product')}
+              className={`${theme.textMuted} hover:${theme.textMain} cursor-pointer underline`}
+            >
+              تفاصيل المنتج
+            </button>
+            <span className={theme.textMuted}>/</span>
+            <strong className={theme.textMain}>صفحة إتمام الطلب والدفع (Checkout)</strong>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openTrackingPage()}
+            className={`text-xs px-3 py-1.5 rounded font-semibold cursor-pointer ${theme.secondaryBtn}`}
+          >
+            لديك طلب سابق؟ تتبع طلبك برقم الأوردر أو الهاتف ←
+          </button>
+        </div>
+
+        {/* Render the Full Checkout Form & Live Invoice */}
+        {renderOrderFormSection(true)}
+      </div>
+    );
+  };
+
+  // 3. Dedicated Order Tracking Page by Phone & Order ID (صفحة تتبع الطلب)
+  const renderOrderTrackingPage = () => {
+    const sampleOrders = getAllStoreOrders().slice(0, 3);
+    const statusOrder = ['new', 'confirmed', 'shipped', 'delivered'];
+    const currentStatusIdx = trackedOrderResult
+      ? Math.max(0, statusOrder.indexOf(trackedOrderResult.status || 'new'))
+      : 0;
+
+    const statusSteps = [
+      { key: 'new', title: 'تم استلام الطلب', desc: 'تم تسجيل الطلب في النظام ومراجعة الأصناف' },
+      { key: 'confirmed', title: 'تم التأكيد هاتفياً', desc: 'تم التواصل مع العميل وتجهيز الشحنة للتغليف' },
+      { key: 'shipped', title: 'خرج مع شركة الشحن', desc: 'الشحنة في الطريق إليك مع مندوب التوصيل' },
+      { key: 'delivered', title: 'تم التسليم بنجاح', desc: 'تم استلام الطلب وسداد قيمة الفاتورة' },
+    ];
+
+    return (
+      <section className={`px-6 @md:px-14 py-10 @md:py-14 border-b ${theme.borderClass}`}>
+        <div className="max-w-3xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-200/70">
+            <div>
+              <span className={`text-[11px] px-2.5 py-0.5 rounded font-bold ${theme.badgeBg}`}>
+                خدمة تتبع الشحنات الفورية
+              </span>
+              <h1 className={`text-2xl @md:text-3xl font-bold mt-2 ${theme.textMain}`}>
+                تتبع حالة طلبك برقم الأوردر أو رقم الهاتف
+              </h1>
+              <p className={`text-xs mt-1 ${theme.textMuted}`}>
+                أدخل رقم الطلب (مثال: ORD-1041) أو رقم الموبايل المسجل في الطلب لمعرفة مرحلة الشحن الحالية فوراً
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStorePage('home')}
+              className={`px-3.5 py-2 rounded text-xs font-semibold shrink-0 cursor-pointer ${theme.secondaryBtn}`}
+            >
+              ← العودة للمتجر
+            </button>
+          </div>
+
+          {/* Search Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              runOrderSearch(trackOrderId, trackPhone);
+            }}
+            className={`p-5 @md:p-6 rounded ${theme.cardClass} space-y-4`}
+          >
+            <div className="grid grid-cols-1 @sm:grid-cols-12 gap-3.5">
+              <div className="@sm:col-span-5">
+                <label className={`block text-xs font-bold mb-1.5 ${theme.textMain}`}>
+                  رقم الطلب (Order ID)
+                </label>
+                <input
+                  type="text"
+                  value={trackOrderId}
+                  onChange={(e) => setTrackOrderId(e.target.value)}
+                  placeholder="مثال: ORD-1041"
+                  dir="ltr"
+                  className={`w-full px-3.5 py-2.5 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none text-right`}
+                />
+              </div>
+
+              <div className="@sm:col-span-5">
+                <label className={`block text-xs font-bold mb-1.5 ${theme.textMain}`}>
+                  رقم الهاتف المسجل بالطلب
+                </label>
+                <input
+                  type="tel"
+                  value={trackPhone}
+                  onChange={(e) => setTrackPhone(e.target.value)}
+                  placeholder="01012345678"
+                  dir="ltr"
+                  className={`w-full px-3.5 py-2.5 rounded text-xs border ${theme.borderClass} bg-transparent ${theme.textMain} focus:outline-none text-right`}
+                />
+              </div>
+
+              <div className="@sm:col-span-2 flex items-end">
+                <button
+                  type="submit"
+                  className={`w-full py-2.5 px-4 rounded text-xs font-bold cursor-pointer transition-colors ${theme.accentBtn}`}
+                >
+                  بحث وتتبع
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Sample Order Pills for Immediate Testing */}
+            {sampleOrders.length > 0 && (
+              <div className="pt-2 border-t border-zinc-200/60 flex items-center gap-2 flex-wrap text-[11px]">
+                <span className={theme.textMuted}>جرب الاستعلام السريع عن طلب مسجل:</span>
+                {sampleOrders.map((ord) => (
+                  <button
+                    key={ord.id}
+                    type="button"
+                    onClick={() => {
+                      setTrackOrderId(ord.id);
+                      setTrackPhone(ord.customerPhone);
+                      runOrderSearch(ord.id, ord.customerPhone);
+                    }}
+                    className={`px-2.5 py-1 rounded border ${theme.borderClass} ${theme.surfaceClass} ${theme.textMain} hover:opacity-80 cursor-pointer font-medium`}
+                  >
+                    #{ord.id} ({ord.customerPhone})
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {trackError && (
+              <div className="p-3 rounded bg-amber-50 border border-amber-300 text-amber-900 text-xs font-medium">
+                {trackError}
+              </div>
+            )}
+          </form>
+
+          {/* Tracked Order Result Timeline & Shipment Card */}
+          {trackedOrderResult && (
+            <div className={`p-6 @md:p-8 rounded ${theme.cardClass} space-y-6`}>
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-zinc-200/70">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-900">
+                      طلب مسجل #{trackedOrderResult.id}
+                    </span>
+                    <span className={`text-xs ${theme.textMuted}`}>
+                      بتاريخ {new Date(trackedOrderResult.createdAt || Date.now()).toLocaleDateString('ar-EG')}
+                    </span>
+                  </div>
+                  <h2 className={`text-lg font-bold mt-1.5 ${theme.textMain}`}>
+                    العميل: {trackedOrderResult.customerName} ({trackedOrderResult.customerPhone})
+                  </h2>
+                </div>
+
+                <div className="text-left">
+                  <span className={`text-[11px] block ${theme.textMuted}`}>إجمالي الفاتورة عند الاستلام</span>
+                  <strong className={`text-lg font-bold pc-price-val ${theme.textMain}`}>
+                    {trackedOrderResult.totalAmount} {trackedOrderResult.currency || currency}
+                  </strong>
+                </div>
+              </div>
+
+              {/* 4-Stage Visual Shipping Progress Stepper */}
+              <div className="grid grid-cols-1 @sm:grid-cols-4 gap-3">
+                {statusSteps.map((step, idx) => {
+                  const isDone = idx <= currentStatusIdx;
+                  const isCurrent = idx === currentStatusIdx;
+                  return (
+                    <div
+                      key={step.key}
+                      className={`p-3.5 rounded border transition-all ${
+                        isCurrent
+                          ? `border-2 border-emerald-700 ${theme.surfaceClass}`
+                          : isDone
+                          ? `border-emerald-600/50 ${theme.surfaceClass}`
+                          : `${theme.borderClass} opacity-50`
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span
+                          className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center ${
+                            isDone ? 'bg-emerald-700 text-white' : 'bg-zinc-200 text-zinc-700'
+                          }`}
+                        >
+                          {isDone ? '✓' : idx + 1}
+                        </span>
+                        {isCurrent && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-bold">
+                            المرحلة الحالية
+                          </span>
+                        )}
+                      </div>
+                      <h3 className={`text-xs font-bold ${theme.textMain}`}>{step.title}</h3>
+                      <p className={`text-[11px] mt-1 leading-relaxed ${theme.textMuted}`}>{step.desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Full Order & Delivery Details */}
+              <div className={`p-4 rounded ${theme.surfaceClass} border ${theme.borderClass} grid grid-cols-1 @sm:grid-cols-2 gap-3 text-xs`}>
+                <div>
+                  <span className={`block text-[11px] ${theme.textMuted}`}>العرض / المنتجات المطلوبة:</span>
+                  <strong className={theme.textMain}>{trackedOrderResult.bundleTitle}</strong>
+                  {trackedOrderResult.variantSelections?.length > 0 && (
+                    <p className={`text-[11px] mt-0.5 ${theme.textMuted}`}>
+                      المواصفات: {trackedOrderResult.variantSelections.join(' + ')}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <span className={`block text-[11px] ${theme.textMuted}`}>عنوان التوصيل المسجل:</span>
+                  <strong className={theme.textMain}>
+                    {trackedOrderResult.governorate} — {trackedOrderResult.address}
+                  </strong>
+                  <p className={`text-[11px] mt-0.5 ${theme.textMuted}`}>
+                    طريقة الدفع:{' '}
+                    {trackedOrderResult.paymentMethod === 'instapay'
+                      ? 'إنستاباي / محفظة إلكترونية'
+                      : 'الدفع نقداً عند الاستلام (COD)'}
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </section>
@@ -2200,16 +3033,17 @@ export default function CanvasFrame({
           </div>
         )}
 
-        {/* Navigation Bar — Clean 3-Zone Balanced Storefront Header */}
-        <header className={`border-b ${theme.borderClass} ${isMobile ? 'px-4 py-3' : 'px-6 @md:px-12 py-4'} sticky top-0 z-20 ${theme.bgClass}/95 backdrop-blur-sm`}>
+        {/* Navigation Bar — Multi-Page Storefront Header (Home | Product | Checkout | Tracking) */}
+        <header className={`border-b ${theme.borderClass} ${isMobile ? 'px-4 py-3' : 'px-6 @md:px-12 py-3.5'} sticky top-0 z-20 ${theme.bgClass}/95 backdrop-blur-sm`}>
           <div className="flex items-center justify-between gap-3">
             {/* Zone 1 (Right): Brand Identity */}
             <div className="flex items-center gap-2.5 min-w-0">
               <span
                 contentEditable={!isFullscreen}
                 suppressContentEditableWarning
+                onClick={() => setStorePage('home')}
                 onBlur={(e) => onUpdateField('brandName', e.currentTarget.innerText)}
-                className={`font-bold ${isMobile ? 'text-sm' : 'text-base @md:text-lg'} tracking-tight ${theme.textMain} focus:outline-none cursor-text truncate`}
+                className={`font-bold ${isMobile ? 'text-sm' : 'text-base @md:text-lg'} tracking-tight ${theme.textMain} focus:outline-none cursor-pointer truncate`}
               >
                 {pageData.brandName || 'اسم المشروع'}
               </span>
@@ -2220,54 +3054,67 @@ export default function CanvasFrame({
               )}
             </div>
 
-            {/* Zone 2 (Center): Centered Storefront Navigation Links */}
+            {/* Zone 2 (Center): 4-Page Storefront Navigation Tabs */}
             {!isMobile && (
-              <nav className={`hidden @md:flex items-center justify-center gap-6 text-xs font-medium ${theme.textMuted}`}>
-                {sections.catalog && (
-                  <button onClick={() => scrollToSection('catalog-section')} className={`hover:${theme.textMain} transition-colors cursor-pointer`}>
-                    المنتجات
-                  </button>
-                )}
-                {sections.features && (
-                  <button onClick={() => scrollToSection('features-section')} className={`hover:${theme.textMain} transition-colors cursor-pointer`}>
-                    المميزات
-                  </button>
-                )}
-                {sections.pricing && (
-                  <button onClick={() => scrollToSection('pricing-section')} className={`hover:${theme.textMain} transition-colors cursor-pointer`}>
-                    الباقات
-                  </button>
-                )}
-                {sections.faq && (
-                  <button onClick={() => scrollToSection('faq-section')} className={`hover:${theme.textMain} transition-colors cursor-pointer`}>
-                    الأسئلة الشائعة
-                  </button>
-                )}
+              <nav className={`hidden @md:flex items-center justify-center gap-1.5 p-1 rounded border ${theme.borderClass} ${theme.surfaceClass} text-xs`}>
+                {[
+                  { id: 'home', label: 'الرئيسية', action: () => setStorePage('home') },
+                  { id: 'product', label: 'تفاصيل المنتج', action: () => openProductDetails(selectedProductId || products[0]?.id) },
+                  { id: 'checkout', label: cartCount > 0 ? `إتمام الطلب (${cartCount})` : 'إتمام الطلب', action: () => openCheckoutPage() },
+                  { id: 'tracking', label: 'تتبع طلبك', action: () => openTrackingPage() },
+                ].map((tab) => {
+                  const isActive = storePage === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={tab.action}
+                      className={`px-3 py-1.5 rounded text-xs font-semibold transition-all cursor-pointer ${
+                        isActive
+                          ? theme.accentBtn
+                          : `${theme.textMuted} hover:${theme.textMain}`
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </nav>
             )}
 
-            {/* Zone 3 (Left): Cart & Primary Order Action */}
+            {/* Zone 3 (Left): Quick Track & Primary Checkout Action */}
             <div className="flex items-center gap-2 shrink-0">
+              {!isMobile && (
+                <button
+                  type="button"
+                  onClick={() => openTrackingPage()}
+                  className={`text-[11px] px-2.5 py-1.5 rounded font-semibold border ${theme.borderClass} ${theme.surfaceClass} ${theme.textMain} cursor-pointer hover:opacity-85`}
+                >
+                  تتبع شحنتك
+                </button>
+              )}
               {cartCount > 0 && (
                 <button
-                  onClick={() => scrollToSection('order-section')}
+                  type="button"
+                  onClick={() => openCheckoutPage()}
                   className={`text-[11px] px-2.5 py-1.5 rounded font-semibold border ${theme.borderClass} ${theme.surfaceClass} ${theme.textMain} cursor-pointer`}
                 >
                   {isMobile ? `السلة (${cartCount})` : `السلة (${cartCount}) — ${cartSubtotal} ${currency}`}
                 </button>
               )}
               <button
-                onClick={() => scrollToSection('order-section')}
+                type="button"
+                onClick={() => openCheckoutPage()}
                 className={`text-xs ${isMobile ? 'px-3 py-1.5' : 'px-4 py-2'} rounded font-semibold transition-colors cursor-pointer ${theme.accentBtn}`}
               >
-                اطلب الآن
+                إتمام الطلب
               </button>
               {isMobile && (
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                   className={`px-2 py-1.5 rounded border ${theme.borderClass} text-xs font-bold ${theme.textMain} cursor-pointer`}
-                  title="قائمة الأقسام"
+                  title="صفحات المتجر"
                 >
                   {mobileMenuOpen ? '×' : '☰'}
                 </button>
@@ -2275,9 +3122,32 @@ export default function CanvasFrame({
             </div>
           </div>
 
-          {/* Collapsible Mobile Navigation Drawer inside Phone Preview */}
+          {/* Mobile 4-Page Storefront Switcher Bar (Always accessible on Mobile) */}
+          {isMobile && (
+            <div className={`mt-2.5 pt-2 border-t ${theme.borderClass} grid grid-cols-4 gap-1 text-[10px]`}>
+              {[
+                { id: 'home', label: 'الرئيسية', action: () => setStorePage('home') },
+                { id: 'product', label: 'المنتج', action: () => openProductDetails(selectedProductId || products[0]?.id) },
+                { id: 'checkout', label: 'الدفع', action: () => openCheckoutPage() },
+                { id: 'tracking', label: 'تتبع طلبك', action: () => openTrackingPage() },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={tab.action}
+                  className={`py-1.5 px-1 rounded font-bold text-center cursor-pointer transition-colors ${
+                    storePage === tab.id ? theme.accentBtn : `${theme.surfaceClass} ${theme.textMain}`
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Collapsible Mobile Section Drawer */}
           {isMobile && mobileMenuOpen && (
-            <nav className={`mt-3 pt-3 border-t ${theme.borderClass} flex flex-wrap gap-2 text-xs ${theme.textMain}`}>
+            <nav className={`mt-2.5 pt-2.5 border-t ${theme.borderClass} flex flex-wrap gap-2 text-xs ${theme.textMain}`}>
               {sections.catalog && (
                 <button
                   onClick={() => {
@@ -2326,47 +3196,84 @@ export default function CanvasFrame({
           )}
         </header>
 
-        {/* Render Dynamic Ordered Sections */}
-        {sectionOrder.map((secKey) => {
-          const renderFn = sectionRenderMap[secKey];
-          return renderFn ? renderFn() : null;
-        })}
+        {/* Render Active Storefront Page: Home vs Product Details vs Checkout vs Order Tracking */}
+        {storePage === 'product' ? (
+          renderProductDetailsPage()
+        ) : storePage === 'checkout' ? (
+          renderCheckoutPage()
+        ) : storePage === 'tracking' ? (
+          renderOrderTrackingPage()
+        ) : (
+          sectionOrder.map((secKey) => {
+            const renderFn = sectionRenderMap[secKey];
+            return renderFn ? renderFn() : null;
+          })
+        )}
 
-        {/* Minimal Editorial Footer */}
-        <footer className={`mt-auto border-t ${theme.borderClass} ${isMobile ? 'px-4 py-5 flex-col text-center' : 'px-6 @md:px-12 py-6 flex-col @sm:flex-row'} flex items-center justify-between gap-2 text-xs ${theme.textMuted}`}>
+        {/* Minimal Editorial Footer with Quick Storefront Page Links */}
+        <footer className={`mt-auto border-t ${theme.borderClass} ${isMobile ? 'px-4 py-5 flex-col text-center' : 'px-6 @md:px-12 py-6 flex-col @sm:flex-row'} flex items-center justify-between gap-3 text-xs ${theme.textMuted}`}>
           <span>{pageData.brandName} — جميع الحقوق محفوظة</span>
-          <span>للتواصل المباشر: {pageData.whatsappPhone}</span>
-        </footer>
-
-        {/* EasyOrders Sticky Bottom Conversion Bar */}
-        {easyOrder.enableStickyBar !== false && sections.orderForm !== false && (
-          <div
-            className={`sticky bottom-0 z-20 border-t ${theme.borderClass} ${theme.cardClass} px-4 md:px-10 py-3 flex items-center justify-between gap-3 shadow-lg`}
-          >
-            <div className="min-w-0">
-              <div className={`text-xs font-bold truncate ${theme.textMain}`}>
-                {activeBundle.title}
-              </div>
-              <div className="flex items-center gap-2 text-[11px]">
-                <span className={`font-bold ${theme.textMain}`}>
-                  {finalTotal} {currency}
-                </span>
-                {isFreeShipping && (
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${theme.badgeBg}`}>
-                    شحن مجاني
-                  </span>
-                )}
-              </div>
-            </div>
+          <div className="flex items-center gap-4 flex-wrap justify-center">
+            <button type="button" onClick={() => setStorePage('home')} className="hover:underline cursor-pointer">
+              الرئيسية
+            </button>
             <button
               type="button"
-              onClick={() => scrollToSection('order-section')}
-              className={`px-5 py-2.5 rounded text-xs font-bold shrink-0 cursor-pointer transition-colors ${theme.accentBtn}`}
+              onClick={() => openProductDetails(selectedProductId || products[0]?.id)}
+              className="hover:underline cursor-pointer"
             >
-              اطلب الآن — الدفع عند الاستلام
+              تفاصيل المنتج
+            </button>
+            <button type="button" onClick={() => openCheckoutPage()} className="hover:underline cursor-pointer">
+              إتمام الطلب
+            </button>
+            <button type="button" onClick={() => openTrackingPage()} className="hover:underline cursor-pointer font-semibold">
+              تتبع الطلب برقم الهاتف
             </button>
           </div>
-        )}
+          <span>للتواصل: {pageData.whatsappPhone}</span>
+        </footer>
+
+        {/* EasyOrders Sticky Bottom Conversion Bar (shown on Home & Product pages) */}
+        {easyOrder.enableStickyBar !== false &&
+          sections.orderForm !== false &&
+          (storePage === 'home' || storePage === 'product') && (
+            <div
+              className={`sticky bottom-0 z-20 border-t ${theme.borderClass} ${theme.cardClass} px-4 md:px-10 py-3 flex items-center justify-between gap-3 shadow-lg`}
+            >
+              <div className="min-w-0">
+                <div className={`text-xs font-bold truncate ${theme.textMain}`}>
+                  {activeBundle.title}
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <span className={`font-bold ${theme.textMain}`}>
+                    {finalTotal} {currency}
+                  </span>
+                  {isFreeShipping && (
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${theme.badgeBg}`}>
+                      شحن مجاني
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => openTrackingPage()}
+                  className={`hidden sm:inline-block px-3 py-2 rounded text-[11px] font-semibold cursor-pointer ${theme.secondaryBtn}`}
+                >
+                  تتبع طلبك
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openCheckoutPage()}
+                  className={`px-5 py-2.5 rounded text-xs font-bold shrink-0 cursor-pointer transition-colors ${theme.accentBtn}`}
+                >
+                  اطلب الآن — الدفع عند الاستلام
+                </button>
+              </div>
+            </div>
+          )}
       </div>
 
       {/* Phone Home Indicator Bar when in Mobile View */}

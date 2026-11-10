@@ -1,5 +1,6 @@
 import {
   generatePageData,
+  detectNicheFromText,
   DEFAULT_SECTION_ORDER,
   DEFAULT_LAYOUTS,
   DEFAULT_SECTIONS,
@@ -53,9 +54,24 @@ export function suggestSlugFromBrand(brandName, fallbackIndex = 1) {
 export function normalizePageData(pageData) {
   if (!pageData) return generatePageData('دار عطور محلية باسم "أثر"', 'editorial');
   const fallbackBasePrice = Number(pageData.products?.[0]?.price) || 340;
-  const defaultEasy = buildDefaultEasyOrderConfig('perfume', fallbackBasePrice);
+  const detectedNiche =
+    pageData.niche ||
+    detectNicheFromText(
+      `${pageData.brandName || ''} ${pageData.category || ''} ${pageData.headline || ''}`
+    );
+  const defaultEasy = buildDefaultEasyOrderConfig(detectedNiche, fallbackBasePrice);
+
+  // Clean up any stale perfume variants if this project is not a perfume store
+  const hasMismatchedPerfumeVariants =
+    detectedNiche !== 'perfume' &&
+    typeof pageData.easyOrder?.variantLabel === 'string' &&
+    pageData.easyOrder.variantLabel.includes('العطر');
+
+  const sourceEasy = hasMismatchedPerfumeVariants ? {} : pageData.easyOrder || {};
+
   return {
     ...pageData,
+    niche: detectedNiche,
     sectionOrder:
       Array.isArray(pageData.sectionOrder) && pageData.sectionOrder.length > 0
         ? pageData.sectionOrder
@@ -66,15 +82,15 @@ export function normalizePageData(pageData) {
     customColors: { ...DEFAULT_CUSTOM_COLORS, ...(pageData.customColors || {}) },
     easyOrder: {
       ...defaultEasy,
-      ...(pageData.easyOrder || {}),
-      orderBump: { ...defaultEasy.orderBump, ...(pageData.easyOrder?.orderBump || {}) },
+      ...sourceEasy,
+      orderBump: { ...defaultEasy.orderBump, ...(sourceEasy.orderBump || {}) },
       shippingRates:
-        Array.isArray(pageData.easyOrder?.shippingRates) && pageData.easyOrder.shippingRates.length > 0
-          ? pageData.easyOrder.shippingRates
+        Array.isArray(sourceEasy.shippingRates) && sourceEasy.shippingRates.length > 0
+          ? sourceEasy.shippingRates
           : defaultEasy.shippingRates,
       bundleOffers:
-        Array.isArray(pageData.easyOrder?.bundleOffers) && pageData.easyOrder.bundleOffers.length > 0
-          ? pageData.easyOrder.bundleOffers
+        Array.isArray(sourceEasy.bundleOffers) && sourceEasy.bundleOffers.length > 0
+          ? sourceEasy.bundleOffers
           : defaultEasy.bundleOffers,
     },
   };

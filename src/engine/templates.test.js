@@ -159,4 +159,27 @@ describe('Full-Scale Editorial Page Builder Engine', () => {
     expect(DESIGN_THEMES.charcoal).toBeDefined();
     expect(IMAGE_LIBRARY.length).toBeGreaterThan(8);
   });
+
+  it('isolates niche content and variants cleanly when switching between website ideas', () => {
+    const perfumeSite = generatePageData('دار عطور باسم أثر');
+    const coffeeSite = generatePageData('محمصة قهوة مختصة باسم مَذاق');
+    const fashionSite = generatePageData('براند أزياء كتان باسم نسيج');
+    const interiorSite = generatePageData('مكتب تصميم داخلي وديكور باسم مقام');
+
+    expect(perfumeSite.niche).toBe('perfume');
+    expect(coffeeSite.niche).toBe('coffee');
+    expect(fashionSite.niche).toBe('fashion');
+    expect(interiorSite.niche).toBe('interior');
+
+    // Coffee variants must be coffee grind/weight options, never perfume scents
+    expect(coffeeSite.easyOrder.variantOptions[0]).toContain('حبوب');
+    expect(coffeeSite.easyOrder.variantOptions[0]).not.toContain('عود');
+
+    // Fashion variants must be sizes/colors, never perfume scents
+    expect(fashionSite.easyOrder.variantOptions[0]).toContain('مقاس');
+    expect(fashionSite.easyOrder.variantOptions[0]).not.toContain('عود');
+
+    // Interior variants must be interior design options
+    expect(interiorSite.easyOrder.variantOptions[0]).toContain('خشب بلوط');
+  });
 });

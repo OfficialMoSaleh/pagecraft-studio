@@ -269,6 +269,39 @@ export function buildDefaultEasyOrderConfig(niche, basePrice = 350) {
       bumpPrice: 50,
       bumpDesc: 'يحافظ على نعومة أنسجة الكتان ويمنع التجعد أثناء السفر والتخزين.',
     },
+    interior: {
+      variantLabel: 'اختر الخامة واللون لكل وحدة',
+      variantOptions: [
+        'خشب بلوط طبيعي — تشطيب مطفي دافئ',
+        'خشب جوز داكن — تشطيب كلاسيكي',
+        'خشب زان فاتح — تصميم إسكندنافي',
+      ],
+      bumpTitle: 'إضافة باقة معاينة هندسية ورفع مقاسات مجاناً',
+      bumpPrice: 250,
+      bumpDesc: 'زيارة مهندس مختص لرفع المقاسات وتنسيق الألوان في موقعك.',
+    },
+    studio: {
+      variantLabel: 'اختر نطاق الخدمة المطلوب',
+      variantOptions: [
+        'تصميم هوية بصرية كاملة + دليل استخدام',
+        'تصميم وتطوير واجهة موقع تفاعلي',
+        'باقة استشارات وتطوير شامل للمنتج الرقمي',
+      ],
+      bumpTitle: 'إضافة دعم فني وصيانة لمدة ٣ أشهر إضافية',
+      bumpPrice: 450,
+      bumpDesc: 'متابعة تقنية وتحديثات دورية بعد التسليم النهائي.',
+    },
+    course: {
+      variantLabel: 'اختر مسار التدريب والمستوى',
+      variantOptions: [
+        'المسار التأسيسي المتكامل (مباشر + مسجل)',
+        'مسار المشاريع العملية المتقدم',
+        'الباقة الشاملة مع جلسات توجيه فردية',
+      ],
+      bumpTitle: 'إضافة جلسة مراجعة سيرتك الذاتية ومشاريعك (1-on-1)',
+      bumpPrice: 150,
+      bumpDesc: 'جلسة خاصة مدتها 45 دقيقة لتقييم أعمالك وتجهيزك لسوق العمل.',
+    },
     default: {
       variantLabel: 'اختر النوع أو المواصفات لكل وحدة',
       variantOptions: [
@@ -395,8 +428,30 @@ function extractPromptDetails(promptText) {
   return result;
 }
 
+export function detectNicheFromText(rawText = '') {
+  const text = String(rawText).toLowerCase();
+  if (text.includes('عطر') || text.includes('عطور') || text.includes('مسك') || text.includes('زيوت') || text.includes('بخور')) {
+    return 'perfume';
+  }
+  if (text.includes('قهوة') || text.includes('كافيه') || text.includes('بن') || text.includes('محمصة') || text.includes('مخبوزات')) {
+    return 'coffee';
+  }
+  if (text.includes('ملابس') || text.includes('أزياء') || text.includes('كتان') || text.includes('شنط') || text.includes('موضة')) {
+    return 'fashion';
+  }
+  if (text.includes('ديكور') || text.includes('أثاث') || text.includes('داخلي') || text.includes('عقار') || text.includes('معماري')) {
+    return 'interior';
+  }
+  if (text.includes('تصميم') || text.includes('استشار') || text.includes('تطوير') || text.includes('استوديو')) {
+    return 'studio';
+  }
+  if (text.includes('كورس') || text.includes('تدريب') || text.includes('برمج') || text.includes('هندسة')) {
+    return 'course';
+  }
+  return 'general';
+}
+
 export function generatePageData(promptText = '', themeKey = 'editorial') {
-  const text = promptText.toLowerCase();
   const { extractedBrand, extractedPrice, extractedDiscount } = extractPromptDetails(promptText);
 
   // Extract core topic (first 2-3 meaningful words) for custom prompts
@@ -411,20 +466,7 @@ export function generatePageData(promptText = '', themeKey = 'editorial') {
   const topicLabel = cleanedTopic.length > 2 ? cleanedTopic : 'المنتج';
   const baseNumericPrice = extractedPrice ? ( parseInt(extractedPrice.replace(/[^\d]/g, ''), 10) || 350 ) : 350;
 
-  let niche = 'general';
-  if (text.includes('عطر') || text.includes('مسك') || text.includes('زيوت') || text.includes('بخور')) {
-    niche = 'perfume';
-  } else if (text.includes('قهوة') || text.includes('كافيه') || text.includes('بن') || text.includes('محمصة') || text.includes('مخبوزات')) {
-    niche = 'coffee';
-  } else if (text.includes('ملابس') || text.includes('أزياء') || text.includes('كتان') || text.includes('شنط') || text.includes('موضة')) {
-    niche = 'fashion';
-  } else if (text.includes('ديكور') || text.includes('أثاث') || text.includes('داخلي') || text.includes('عقار') || text.includes('معماري')) {
-    niche = 'interior';
-  } else if (text.includes('تصميم') || text.includes('استشار') || text.includes('تطوير') || text.includes('استوديو')) {
-    niche = 'studio';
-  } else if (text.includes('كورس') || text.includes('تدريب') || text.includes('برمج') || text.includes('هندسة')) {
-    niche = 'course';
-  }
+  const niche = detectNicheFromText(promptText);
 
   const templates = {
     perfume: {
@@ -1203,6 +1245,7 @@ export function generatePageData(promptText = '', themeKey = 'editorial') {
   };
 
   return {
+    niche,
     ...chosen,
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     layouts: nicheDefaultLayouts[niche] || { ...DEFAULT_LAYOUTS },

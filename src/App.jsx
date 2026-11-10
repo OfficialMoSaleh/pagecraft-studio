@@ -127,6 +127,7 @@ export default function App() {
 
   // Main Page Data State synced with active project
   const [pageData, setPageData] = useState(() => activeProject.pageData);
+  const [canvasResetKey, setCanvasResetKey] = useState(0);
 
   const [history, setHistory] = useState([]);
 
@@ -173,6 +174,7 @@ export default function App() {
     setActiveThemeKey(target.theme || 'editorial');
     setPromptInput(target.prompt || '');
     setHistory([]);
+    setCanvasResetKey((k) => k + 1);
   };
 
   const handleCreateProject = ({ name, prompt, theme }) => {
@@ -187,6 +189,7 @@ export default function App() {
     setActiveThemeKey(created.theme);
     setPromptInput(created.prompt);
     setHistory([]);
+    setCanvasResetKey((k) => k + 1);
   };
 
   const handleDuplicateProject = (projectId) => {
@@ -203,6 +206,7 @@ export default function App() {
     setActiveThemeKey(cloned.theme);
     setPromptInput(cloned.prompt);
     setHistory([]);
+    setCanvasResetKey((k) => k + 1);
   };
 
   const handleDeleteProject = (projectId) => {
@@ -275,16 +279,19 @@ export default function App() {
       if (geminiKey.trim()) {
         const aiData = await generateWithGeminiAI(finalPrompt, geminiKey.trim(), finalTheme);
         setPageData(aiData);
+        setCanvasResetKey((k) => k + 1);
       } else {
         await new Promise((r) => setTimeout(r, 200));
         const nextData = generatePageData(finalPrompt, finalTheme);
         setPageData(nextData);
         if (nextData.theme) setActiveThemeKey(nextData.theme);
+        setCanvasResetKey((k) => k + 1);
       }
     } catch (err) {
       setGenError(err.message || 'حدث خطأ أثناء التوليد، تم استخدام المحرك المحلي.');
       const fallback = generatePageData(finalPrompt, finalTheme);
       setPageData(fallback);
+      setCanvasResetKey((k) => k + 1);
     } finally {
       setIsGenerating(false);
     }
@@ -603,6 +610,7 @@ export default function App() {
           العودة إلى لوحة التعديل
         </button>
         <CanvasFrame
+          key={`${activeProjectId}_${canvasResetKey}_fs`}
           pageData={pageData}
           onUpdateField={handleUpdateField}
           onMoveSection={handleMoveSection}
@@ -610,6 +618,7 @@ export default function App() {
           onToggleSection={handleToggleSection}
           onOpenImagePicker={openImagePicker}
           onSubmitOrder={handleSubmitOrder}
+          orders={orders}
           activeThemeKey={activeThemeKey}
           deviceView="desktop"
           isFullscreen={true}
@@ -1889,6 +1898,7 @@ export default function App() {
         {/* Left Area: Main Scrollable Preview Canvas (No Extra Cluttered Sub-Header!) */}
         <main className="flex-1 overflow-y-auto p-3 md:p-6">
           <CanvasFrame
+            key={`${activeProjectId}_${canvasResetKey}`}
             pageData={pageData}
             onUpdateField={handleUpdateField}
             onMoveSection={handleMoveSection}
@@ -1896,6 +1906,7 @@ export default function App() {
             onToggleSection={handleToggleSection}
             onOpenImagePicker={openImagePicker}
             onSubmitOrder={handleSubmitOrder}
+            orders={orders}
             activeThemeKey={activeThemeKey}
             deviceView={deviceView}
             isFullscreen={false}
