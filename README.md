@@ -106,7 +106,7 @@ npm test
 | `ALLOWED_ORIGINS` | — | Comma-separated CORS allow-list. Empty = same-origin only. |
 | `PAGECRAFT_DATA_DIR` | `server/data` | Location of `pages.json` and `orders.json`; the last 20 versions of each are kept in `backups/`. |
 | `TRUST_PROXY` | — | Set to `1` behind a reverse proxy so rate limits see real client IPs. |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | — | Optional: send every new order to the store owner on Telegram. |
+| `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` / `EVOLUTION_INSTANCE` | — | Optional: WhatsApp alert for every new order, sent from the platform's number (Evolution API) to each store's own WhatsApp number. |
 
 Published pages at `/p/:slug` are rendered on the server from stored `pageData` (all text escaped, strict CSP). The server never stores or serves client-supplied HTML.
 
@@ -118,6 +118,14 @@ When a store is published to the server, the storefront sends orders to `POST /a
 - Customers track with `POST /api/orders/track` and must give **both** the order ID and their phone; the response never includes the address.
 - The studio's orders inbox loads server orders (`GET /api/orders`, admin) and updates/deletes them on the server. When the studio talks to a remote server, store the admin token in the browser with `localStorage.setItem('pagecraft_admin_token', '…')`.
 - Public order endpoints are rate-limited per IP.
+
+### New-order WhatsApp alerts | إشعارات الطلبات على واتساب
+
+Store owners set up nothing: every new order is sent as a WhatsApp message to the number already saved in their store (**رقم واتساب لاستقبال الطلبات**). They can turn it off with the checkbox under that field. Local formats are accepted (`05…` → `966…`, `01…` → `20…`).
+
+The platform owner connects one sending number once, through [Evolution API](https://doc.evolution-api.com/), and sets `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` and `EVOLUTION_INSTANCE`. If they are missing or the send fails, the order is still saved; the failure is only logged.
+
+> Use a dedicated WhatsApp number for sending, not a personal one: unofficial WhatsApp APIs can get a number banned if it sends a lot.
 
 Without the server (e.g. the GitHub Pages demo or `?s=` share links), orders fall back to the local demo inbox in the browser.
 

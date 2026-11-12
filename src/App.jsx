@@ -1896,6 +1896,17 @@ export default function App() {
                           placeholder="201012345678"
                           className="w-full bg-[#FAF9F6] border border-[#D8D5CD] rounded px-2.5 py-1.5 text-xs font-mono"
                         />
+                        <label className="mt-2 flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={pageData.notifyOrdersOnWhatsapp !== false}
+                            onChange={(e) => handleUpdateField('notifyOrdersOnWhatsapp', e.target.checked)}
+                            className="accent-zinc-900 w-3.5 h-3.5 mt-0.5 cursor-pointer shrink-0"
+                          />
+                          <span className="text-[11px] text-zinc-600 leading-relaxed">
+                            أرسل لي إشعاراً فورياً على هذا الرقم بكل طلب جديد (يعمل بعد نشر المتجر)
+                          </span>
+                        </label>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">

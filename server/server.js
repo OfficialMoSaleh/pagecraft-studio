@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { buildStandaloneHTML } from '../src/engine/exportHtml.js';
 import { computeOrderPricing } from '../src/engine/orderPricing.js';
 import { createJsonStore } from './store.js';
+import { notifyStoreOwner, whatsappNotificationsConfigured } from './notify.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,8 +20,8 @@ const __dirname = path.dirname(__filename);
  *   ALLOWED_ORIGINS        comma-separated CORS allow-list (default: none, same-origin only)
  *   PAGECRAFT_DATA_DIR     where pages.json / orders.json live (default server/data)
  *   TRUST_PROXY            set to 1 when running behind a reverse proxy (correct client IPs for rate limits)
- *   TELEGRAM_BOT_TOKEN     optional: notify the store owner of every new order
- *   TELEGRAM_CHAT_ID       optional: chat that receives the notifications
+ *   EVOLUTION_API_URL / EVOLUTION_API_KEY / EVOLUTION_INSTANCE
+ *                          optional: WhatsApp new-order alerts to each store's own number (see notify.js)
  */
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -30,8 +31,6 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
   .map((o) => o.trim())
   .filter(Boolean);
 const DATA_DIR = process.env.PAGECRAFT_DATA_DIR || path.join(__dirname, 'data');
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
 
 const SLUG_RE = /^[a-z0-9؀-ۿ_-]{1,80}$/;
 const ALLOWED_THEMES = new Set(['editorial', 'minimal', 'forest', 'charcoal']);
@@ -137,31 +136,6 @@ const publicOrderView = (o) => ({
   currency: o.currency,
   customerPhoneMasked: o.customerPhone ? `••••${o.customerPhone.slice(-3)}` : '',
 });
-
-async function notifyTelegram(order) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
-  const lines = [
-    `طلب جديد ${order.id} — ${order.projectName}`,
-    `العميل: ${order.customerName} (${order.customerPhone})`,
-    `العنوان: ${order.governorate} — ${order.address}`,
-    `العرض: ${order.bundleTitle}`,
-    order.variantSelections?.length ? `القطع: ${order.variantSelections.join(' + ')}` : '',
-    `الإجمالي: ${order.totalAmount} ${order.currency}`,
-    order.notes ? `ملاحظات: ${order.notes}` : '',
-  ].filter(Boolean);
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // No parse_mode: customer text is sent as plain text, never interpreted as markup.
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: lines.join('\n').slice(0, 4000) }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) console.error(`Telegram notify failed for ${order.id}: HTTP ${res.status}`);
-  } catch (err) {
-    console.error(`Telegram notify failed for ${order.id}: ${err.message}`);
-  }
-}
 
 // ---------- app ----------
 export const app = express();
@@ -318,7 +292,7 @@ app.post(
         return { value: orders[id] };
       });
 
-      notifyTelegram(order); // fire-and-forget; never blocks or fails the order
+      notifyStoreOwner(order, page.pageData); // fire-and-forget; never blocks or fails the order
 
       res.status(201).json({ success: true, data: { ...publicOrderView(order), customerName, address } });
     } catch {
@@ -430,6 +404,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   app.listen(PORT, HOST, () => {
     console.log(`PageCraft Studio API running at http://${HOST}:${PORT}`);
     if (!ADMIN_TOKEN) console.log('PAGECRAFT_ADMIN_TOKEN not set: admin routes limited to localhost.');
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) console.log('Telegram notifications disabled.');
+    if (!whatsappNotificationsConfigured()) console.log('WhatsApp order notifications disabled (EVOLUTION_* not set).');
   });
 }
