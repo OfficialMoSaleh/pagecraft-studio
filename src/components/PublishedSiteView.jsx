@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import CanvasFrame from './CanvasFrame';
-import { resolvePublishedSite, addOrderToInbox } from '../engine/projects';
+import {
+  resolvePublishedSite,
+  addOrderToInbox,
+  submitOrderToServer,
+  trackOrderOnServer,
+} from '../engine/projects';
 
 export default function PublishedSiteView({ slug, sharedSite, onExitToStudio, onRemixSharedSite }) {
   const [site, setSite] = useState(sharedSite || null);
@@ -66,12 +71,22 @@ export default function PublishedSiteView({ slug, sharedSite, onExitToStudio, on
     );
   }
 
+  const isServerBacked = Boolean(site.slug) && !site.isServerlessShare;
+
   return (
     <div className="min-h-screen relative">
       <CanvasFrame
         pageData={site.pageData}
         onUpdateField={() => {}}
-        onSubmitOrder={(payload) => addOrderToInbox(payload).order}
+        onSubmitOrder={async (payload, selection) => {
+          // Real stores send orders to the server; serverless share links stay a local demo.
+          if (isServerBacked) {
+            const saved = await submitOrderToServer(site.slug, payload, selection);
+            if (saved) return saved;
+          }
+          return addOrderToInbox(payload).order;
+        }}
+        onTrackOrder={isServerBacked ? (id, phone) => trackOrderOnServer(id, phone) : undefined}
         activeThemeKey={site.theme || 'editorial'}
         deviceView="desktop"
         isFullscreen={true}

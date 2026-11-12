@@ -35,6 +35,9 @@ import {
   loadOrdersInbox,
   saveOrdersInbox,
   addOrderToInbox,
+  fetchServerOrders,
+  updateServerOrderStatus,
+  deleteServerOrder,
 } from './engine/projects';
 
 const SECTION_LABELS = {
@@ -564,17 +567,50 @@ export default function App() {
     return order;
   };
 
-  const handleUpdateOrderStatus = (orderId, nextStatus) => {
+  const handleUpdateOrderStatus = async (orderId, nextStatus) => {
+    const target = orders.find((o) => o.id === orderId);
+    if (target?.source === 'server') {
+      try {
+        await updateServerOrderStatus(orderId, nextStatus);
+      } catch (err) {
+        window.alert(`تعذر تحديث الطلب على الخادم: ${err.message}`);
+        return;
+      }
+    }
     const updated = orders.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o));
     setOrders(updated);
-    saveOrdersInbox(updated);
+    saveOrdersInbox(updated.filter((o) => o.source !== 'server'));
   };
 
-  const handleDeleteOrder = (orderId) => {
+  const handleDeleteOrder = async (orderId) => {
+    const target = orders.find((o) => o.id === orderId);
+    if (target?.source === 'server') {
+      if (!window.confirm(`حذف الطلب ${orderId} نهائياً من الخادم؟ لا يمكن التراجع.`)) return;
+      try {
+        await deleteServerOrder(orderId);
+      } catch (err) {
+        window.alert(`تعذر حذف الطلب من الخادم: ${err.message}`);
+        return;
+      }
+    }
     const updated = orders.filter((o) => o.id !== orderId);
     setOrders(updated);
-    saveOrdersInbox(updated);
+    saveOrdersInbox(updated.filter((o) => o.source !== 'server'));
   };
+
+  // Pull real orders from the server whenever the inbox is opened (local demo orders stay as a fallback).
+  useEffect(() => {
+    if (!showOrdersModal) return;
+    let active = true;
+    fetchServerOrders().then((serverOrders) => {
+      if (!active || !serverOrders) return;
+      const local = loadOrdersInbox().filter((o) => o.source !== 'server');
+      setOrders([...serverOrders, ...local]);
+    });
+    return () => {
+      active = false;
+    };
+  }, [showOrdersModal]);
 
   // If visiting a serverless shared link (?s=...) or /p/:slug, render PublishedSiteView
   if (sharedSite || liveRouteSlug) {

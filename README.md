@@ -104,9 +104,22 @@ npm test
 | `HOST` | `127.0.0.1` | Listen address. Use `0.0.0.0` only behind an HTTPS reverse proxy. |
 | `PAGECRAFT_ADMIN_TOKEN` | — | Required (`Authorization: Bearer …`) for `POST`/`DELETE` from non-local requests. Without it, writes are accepted from localhost only. |
 | `ALLOWED_ORIGINS` | — | Comma-separated CORS allow-list. Empty = same-origin only. |
-| `PAGECRAFT_DATA_DIR` | `server/data` | Location of `pages.json`; the last 20 versions are kept in `backups/`. |
+| `PAGECRAFT_DATA_DIR` | `server/data` | Location of `pages.json` and `orders.json`; the last 20 versions of each are kept in `backups/`. |
+| `TRUST_PROXY` | — | Set to `1` behind a reverse proxy so rate limits see real client IPs. |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | — | Optional: send every new order to the store owner on Telegram. |
 
 Published pages at `/p/:slug` are rendered on the server from stored `pageData` (all text escaped, strict CSP). The server never stores or serves client-supplied HTML.
+
+### Orders | الطلبات
+
+When a store is published to the server, the storefront sends orders to `POST /api/sites/:slug/orders`:
+- The total is **recomputed on the server** from the stored page (`src/engine/orderPricing.js`, shared with the storefront), so a tampered price is ignored.
+- Order IDs are random (`ORD-XXXXXXXX`), not sequential.
+- Customers track with `POST /api/orders/track` and must give **both** the order ID and their phone; the response never includes the address.
+- The studio's orders inbox loads server orders (`GET /api/orders`, admin) and updates/deletes them on the server. When the studio talks to a remote server, store the admin token in the browser with `localStorage.setItem('pagecraft_admin_token', '…')`.
+- Public order endpoints are rate-limited per IP.
+
+Without the server (e.g. the GitHub Pages demo or `?s=` share links), orders fall back to the local demo inbox in the browser.
 
 ---
 
