@@ -8,7 +8,6 @@ import {
   DEFAULT_CUSTOM_COLORS,
   buildDefaultEasyOrderConfig,
 } from './templates';
-import { buildStandaloneHTML } from '../components/CodeExportModal';
 
 const STORAGE_KEY = 'pagecraft_projects_v1';
 const ACTIVE_PROJECT_KEY = 'pagecraft_active_project_id';
@@ -384,7 +383,6 @@ export function getLiveShareUrl(slug) {
 export async function publishProjectToServer(project) {
   const now = new Date().toISOString();
   const cleanSlug = sanitizeSlug(project.slug || project.name);
-  const standaloneHtml = buildStandaloneHTML(project.pageData, project.theme);
 
   const updatedProject = {
     ...project,
@@ -411,7 +409,6 @@ export async function publishProjectToServer(project) {
         name: updatedProject.name,
         theme: updatedProject.theme,
         pageData: updatedProject.pageData,
-        html: standaloneHtml,
         publishedAt: now,
       }),
     });
