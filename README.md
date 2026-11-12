@@ -97,6 +97,17 @@ npm run server
 npm test
 ```
 
+### Server security settings | إعدادات أمان السيرفر
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `HOST` | `127.0.0.1` | Listen address. Use `0.0.0.0` only behind an HTTPS reverse proxy. |
+| `PAGECRAFT_ADMIN_TOKEN` | — | Required (`Authorization: Bearer …`) for `POST`/`DELETE` from non-local requests. Without it, writes are accepted from localhost only. |
+| `ALLOWED_ORIGINS` | — | Comma-separated CORS allow-list. Empty = same-origin only. |
+| `PAGECRAFT_DATA_DIR` | `server/data` | Location of `pages.json`; the last 20 versions are kept in `backups/`. |
+
+Published pages at `/p/:slug` are rendered on the server from stored `pageData` (all text escaped, strict CSP). The server never stores or serves client-supplied HTML.
+
 ---
 
 ## Project Structure | هيكل الملفات

@@ -4,7 +4,7 @@ import {
   getLiveShareUrl,
   getShareableCloudUrl,
 } from '../engine/projects';
-import { buildStandaloneHTML } from './CodeExportModal';
+import { buildStandaloneHTML } from '../engine/exportHtml';
 
 export default function PublishModal({
   isOpen,
