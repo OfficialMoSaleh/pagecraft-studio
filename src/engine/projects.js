@@ -402,7 +402,7 @@ export async function publishProjectToServer(project) {
   try {
     const res = await fetch('/api/pages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminHeaders(),
       body: JSON.stringify({
         id: updatedProject.id,
         slug: cleanSlug,
@@ -621,3 +621,95 @@ export function buildOrdersCsvContent(orders) {
 }
 
 
+
+// ---------------------------------------------------------------------------
+// Server-backed orders (Express API). Every call degrades gracefully: when the
+// API is unreachable (e.g. the static GitHub Pages demo), callers fall back to
+// the local demo inbox above.
+// ---------------------------------------------------------------------------
+
+const ADMIN_TOKEN_KEY = 'pagecraft_admin_token';
+
+function adminHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  try {
+    const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (token) headers.Authorization = `Bearer ${token}`;
+  } catch {
+    // ignore
+  }
+  return headers;
+}
+
+async function apiJson(url, options = {}) {
+  const res = await fetch(url, options);
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    json = null;
+  }
+  if (!res.ok || !json?.success) {
+    const err = new Error(json?.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return json.data;
+}
+
+/** Submit a storefront order to the server. Returns the saved order, or null if the API is unavailable. */
+export async function submitOrderToServer(siteSlug, orderPayload, selection) {
+  if (!siteSlug) return null;
+  try {
+    const saved = await apiJson(`/api/sites/${encodeURIComponent(siteSlug)}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...orderPayload, selection }),
+    });
+    return { ...orderPayload, ...saved, customerPhone: orderPayload.customerPhone, source: 'server' };
+  } catch (err) {
+    // 4xx = the server rejected the order (validation / rate limit): surface it.
+    if (err.status && err.status >= 400 && err.status < 500 && err.status !== 404) throw err;
+    return null;
+  }
+}
+
+/** Track an order on the server. Requires both id and phone. Returns null when not found / unavailable. */
+export async function trackOrderOnServer(orderId, phone) {
+  if (!orderId || !phone) return null;
+  try {
+    const data = await apiJson('/api/orders/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: orderId, phone }),
+    });
+    return { ...data, source: 'server' };
+  } catch {
+    return null;
+  }
+}
+
+/** Store owner: list server orders. Returns null if the API is unavailable or not authorized. */
+export async function fetchServerOrders() {
+  try {
+    const list = await apiJson('/api/orders', { headers: adminHeaders() });
+    return list.map((o) => ({ ...o, source: 'server' }));
+  } catch {
+    return null;
+  }
+}
+
+export async function updateServerOrderStatus(orderId, status) {
+  return apiJson(`/api/orders/${encodeURIComponent(orderId)}`, {
+    method: 'PATCH',
+    headers: adminHeaders(),
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function deleteServerOrder(orderId) {
+  return apiJson(`/api/orders/${encodeURIComponent(orderId)}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
+}

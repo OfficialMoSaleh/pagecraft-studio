@@ -11,6 +11,7 @@ import {
   detectNicheFromText,
 } from '../engine/templates';
 import { loadOrdersInbox } from '../engine/projects';
+import { computeOrderPricing } from '../engine/orderPricing';
 
 const SECTION_NAMES_AR = {
   hero: 'القسم الرئيسي (Hero)',
@@ -32,6 +33,7 @@ export default function CanvasFrame({
   onToggleSection,
   onOpenImagePicker,
   onSubmitOrder,
+  onTrackOrder,
   orders: propOrders,
   activeThemeKey,
   deviceView,
@@ -125,6 +127,8 @@ export default function CanvasFrame({
   const [customerNotes, setCustomerNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [orderSending, setOrderSending] = useState(false);
+  const [orderError, setOrderError] = useState('');
 
   // Order Tracking Page State ('tracking')
   const [trackOrderId, setTrackOrderId] = useState('');
@@ -195,38 +199,27 @@ export default function CanvasFrame({
   const cartCount = cartItems.reduce((sum, item) => sum + item.qty, 0);
   const cartSubtotal = cartItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
-  // EasyOrders COD Calculation
-  const activeBundle = bundleOffers[selectedBundleIdx] || bundleOffers[0] || {
-    qty: 1,
-    title: 'عرض قطعة واحدة',
-    price: Number(pageData.products?.[0]?.price) || 340,
-    freeShipping: false,
+  // EasyOrders COD Calculation (shared with the server via engine/orderPricing)
+  const pricingSelection = {
+    bundleIdx: selectedBundleIdx,
+    governorateId: selectedGovId,
+    includeOrderBump,
+    promoCode: promoApplied ? pageData.promoCode || 'WELCOME10' : '',
+    cart,
   };
+  const pricing = computeOrderPricing(pageData, pricingSelection);
+  const activeBundle = pricing.activeBundle;
   const activeQty = Number(activeBundle.qty) || 1;
   const freeShippingThreshold = 900;
   const parsePrice = (val) => Number(String(val || 0).replace(/[^\d.]/g, '')) || 0;
-
-  const activeGov =
-    shippingRates.find((g) => g.id === selectedGovId) ||
-    shippingRates[0] || { name: 'القاهرة والجيزة', fee: deliveryFee || 50, days: 'خلال 48 ساعة' };
-
-  const baseOrderSubtotal =
-    cartSubtotal > 0
-      ? cartSubtotal
-      : easyOrder.enableBundleSelector !== false
-      ? Number(activeBundle.price) || 0
-      : Number(pageData.products?.[0]?.price) || 340;
-
-  const isFreeShipping =
-    easyOrder.enableBundleSelector !== false && cartSubtotal === 0 && Boolean(activeBundle.freeShipping);
-  const effectiveShippingFee = isFreeShipping ? 0 : Number(activeGov.fee ?? deliveryFee);
-  const bumpFee =
-    easyOrder.enableOrderBump !== false && includeOrderBump
-      ? Number(easyOrder.orderBump?.price) || 0
-      : 0;
-  const discountPercent = promoApplied ? Number(pageData.promoDiscountPercent) || 10 : 0;
-  const discountAmount = Math.round((baseOrderSubtotal * discountPercent) / 100);
-  const finalTotal = Math.max(0, baseOrderSubtotal - discountAmount + effectiveShippingFee + bumpFee);
+  const activeGov = pricing.activeGov;
+  const baseOrderSubtotal = pricing.subtotal;
+  const isFreeShipping = pricing.isFreeShipping;
+  const effectiveShippingFee = pricing.shippingFee;
+  const bumpFee = pricing.bumpFee;
+  const discountPercent = pricing.discountPercent;
+  const discountAmount = pricing.discountAmount;
+  const finalTotal = pricing.total;
 
   // Inline array update helpers
   const handleProductUpdate = (indexOrId, field, value) => {
@@ -320,9 +313,11 @@ export default function CanvasFrame({
     });
   };
 
-  const handleSendOrder = (e) => {
+  const handleSendOrder = async (e) => {
     e.preventDefault();
-    const waPhone = pageData.whatsappPhone || '201000000000';
+    if (orderSending) return;
+    setOrderError('');
+    const waPhone = String(pageData.whatsappPhone || '').replace(/\D/g, '') || '201000000000';
     const chosenQty = Number(activeBundle.qty) || 1;
     const chosenVariants =
       cartItems.length > 0
@@ -400,8 +395,20 @@ export default function CanvasFrame({
       ...orderPayload,
     };
     if (onSubmitOrder) {
-      const saved = onSubmitOrder(orderPayload);
-      if (saved?.id) createdOrder = { ...saved, waUrl };
+      setOrderSending(true);
+      try {
+        const saved = await onSubmitOrder(orderPayload, pricingSelection);
+        if (saved?.id) {
+          // Put the order number at the top of the WhatsApp message so the owner can match it.
+          const waUrlWithId = `https://wa.me/${waPhone}?text=${encodeURIComponent(`رقم الطلب: ${saved.id}\n${message}`)}`;
+          createdOrder = { ...createdOrder, ...saved, waUrl: waUrlWithId };
+        }
+      } catch (err) {
+        setOrderError(err?.message || 'تعذر تسجيل الطلب، حاول مرة أخرى.');
+        return;
+      } finally {
+        setOrderSending(false);
+      }
     }
 
     setSubmittedReceipt(createdOrder);
@@ -431,7 +438,7 @@ export default function CanvasFrame({
     return inboxList;
   };
 
-  const runOrderSearch = (orderIdInput, phoneInput) => {
+  const runOrderSearch = async (orderIdInput, phoneInput) => {
     const cleanId = String(orderIdInput || '')
       .trim()
       .toUpperCase()
@@ -446,7 +453,8 @@ export default function CanvasFrame({
       return;
     }
 
-    const allOrders = getAllStoreOrders();
+    // A server-backed store only matches the visitor's own just-placed order locally; everything else goes to the server.
+    const allOrders = onTrackOrder ? (submittedReceipt ? [submittedReceipt] : []) : getAllStoreOrders();
     const matched = allOrders.find((ord) => {
       const ordIdUpper = String(ord.id || '').toUpperCase();
       const ordDigits = ordIdUpper.replace(/\D/g, '');
@@ -471,6 +479,21 @@ export default function CanvasFrame({
     if (matched) {
       setTrackedOrderResult(matched);
       setTrackError('');
+      return;
+    }
+
+    const remote = onTrackOrder && cleanId && cleanPhone ? await onTrackOrder(cleanId, cleanPhone) : null;
+    if (remote) {
+      setTrackedOrderResult({
+        ...remote,
+        customerName: customerName || 'العميل',
+        customerPhone: remote.customerPhoneMasked || '',
+        address: 'العنوان محفوظ لدى المتجر',
+      });
+      setTrackError('');
+    } else if (onTrackOrder && (!cleanId || !cleanPhone)) {
+      setTrackedOrderResult(null);
+      setTrackError('للاستعلام أدخل رقم الطلب ورقم الهاتف المسجل معاً.');
     } else {
       setTrackedOrderResult(null);
       setTrackError('لم يتم العثور على طلب مطابق. تأكد من رقم الطلب (مثل ORD-1041) أو رقم الهاتف.');
@@ -2272,11 +2295,19 @@ export default function CanvasFrame({
                 </div>
               </div>
 
+              {orderError && (
+                <p role="alert" className="text-xs font-semibold text-red-600">
+                  {orderError}
+                </p>
+              )}
               <button
                 type="submit"
-                className={`w-full py-3.5 rounded text-xs md:text-sm font-bold transition-colors cursor-pointer ${theme.accentBtn}`}
+                disabled={orderSending}
+                className={`w-full py-3.5 rounded text-xs md:text-sm font-bold transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait ${theme.accentBtn}`}
               >
-                {orderSubmitted
+                {orderSending
+                  ? 'جاري تسجيل الطلب...'
+                  : orderSubmitted
                   ? 'تم تسجيل طلبك بنجاح!'
                   : `تأكيد الطلب الآن — الدفع عند الاستلام (${finalTotal} ${currency})`}
               </button>
@@ -2691,7 +2722,8 @@ export default function CanvasFrame({
 
   // 3. Dedicated Order Tracking Page by Phone & Order ID (صفحة تتبع الطلب)
   const renderOrderTrackingPage = () => {
-    const sampleOrders = getAllStoreOrders().slice(0, 3);
+    // Demo shortcuts only in the local studio; a real (server-backed) store never lists other customers' orders.
+    const sampleOrders = onTrackOrder ? [] : getAllStoreOrders().slice(0, 3);
     const statusOrder = ['new', 'confirmed', 'shipped', 'delivered'];
     const currentStatusIdx = trackedOrderResult
       ? Math.max(0, statusOrder.indexOf(trackedOrderResult.status || 'new'))
